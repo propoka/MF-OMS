@@ -1,0 +1,305 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum OrderDeliveryStatus {
+  PENDING      // Chờ xác nhận
+  PROCESSING   // Đang xử lý
+  SHIPPING     // Đang giao
+  COMPLETED    // Hoàn thành
+  RETURNED     // Hoàn hàng
+  CANCELLED    // Huỷ
+}
+
+// Removed OrderPaymentStatus
+
+enum PriceSource {
+  SPECIAL      // Giá đặc biệt per-customer
+  GROUP        // Giá theo nhóm
+  RETAIL       // Giá bán lẻ mặc định
+}
+
+enum GroupPriceType {
+  PERCENTAGE   // Giảm theo % so với giá lẻ
+  FIXED        // Bảng giá tĩnh
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+}
+
+// ============================================================
+// MODEL: User (Tài khoản hệ thống)
+// ============================================================
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role     @default(STAFF)
+  isActive     Boolean  @default(true)
+  refreshTokenHash String? // Hash của refresh token hiện tại — dùng để revoke
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders    Order[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// ============================================================
+// MODEL: CustomerGroup (Nhóm khách hàng)
+// ============================================================
+model CustomerGroup {
+  id          String         @id @default(cuid())
+  name        String         @unique  // e.g. "Khách lẻ", "Sỉ cấp 1", "Đại lý"
+  description String?
+  priceType   GroupPriceType @default(PERCENTAGE)
+  // Nếu PERCENTAGE: discountPercent = % giảm giá so với giá lẻ (0-100)
+  // Nếu FIXED: dùng ProductGroupPrice.fixedPrice
+  discountPercent Float?     @default(0)
+  isDefault   Boolean        @default(false)  // "Khách lẻ" là default
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  customers        Customer[]
+  productGroupPrices ProductGroupPrice[]
+
+  @@map("customer_groups")
+}
+
+// ============================================================
+// MODEL: Customer (Hồ sơ khách hàng)
+// ============================================================
+model Customer {
+  id              String    @id @default(cuid())
+  phone           String    @unique  // Primary key logic - chống trùng
+  fullName        String
+  groupId         String
+  // Địa chỉ (2 cấp mới 2025: Tỉnh → Phường/Xã)
+  provinceCode    String?
+  provinceName    String?
+  wardCode        String?
+  wardName        String?
+  addressDetail   String?   // Số nhà, tên đường
+  notes           String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  group         CustomerGroup       @relation(fields: [groupId], references: [id])
+  specialPrices CustomerSpecialPrice[]
+  orders        Order[]
+
+  // Các chỉ số read-only được tính động qua query, không lưu DB
+  @@map("customers")
+}
+
+// ============================================================
+// MODEL: CustomerSpecialPrice (Giá đặc biệt per-customer per-product)
+// Pricing Engine Priority 1
+// ============================================================
+model CustomerSpecialPrice {
+  id         String   @id @default(cuid())
+  customerId String
+  productId  String
+  price      Decimal  @db.Decimal(15, 0)  // Giá VNĐ
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@map("customer_special_prices")
+}
+
+// ============================================================
+// MODEL: Product (Sản phẩm - Master Data)
+// ============================================================
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String   @unique
+  unit        String   // Hộp, Thùng, Gói, Cái...
+  retailPrice Decimal  @db.Decimal(15, 0)  // Giá bán lẻ (mặc định)
+  costPrice   Decimal? @db.Decimal(15, 0)  // Giá vốn (optional)
+  weight      Float?   // gram
+  dimensions  String?  // "D x R x C" cm
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  groupPrices    ProductGroupPrice[]
+  specialPrices  CustomerSpecialPrice[]
+  orderItems     OrderItem[]
+
+  @@map("products")
+}
+
+// ============================================================
+// MODEL: ProductGroupPrice (Giá theo nhóm - per-product)
+// Pricing Engine Priority 2
+// ============================================================
+model ProductGroupPrice {
+  id          String   @id @default(cuid())
+  productId   String
+  groupId     String
+  // Nếu group.priceType = FIXED, dùng fixedPrice
+  // Nếu group.priceType = PERCENTAGE, dùng group.discountPercent
+  fixedPrice  Decimal? @db.Decimal(15, 0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  group   CustomerGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, groupId])
+  @@map("product_group_prices")
+}
+
+// ============================================================
+// MODEL: Order (Đơn hàng)
+// ============================================================
+model Order {
+  id               String              @id @default(cuid())
+  orderNumber      String              @unique  // AUTO: ORD-YYYYMMDD-XXXX
+  customerId       String
+  // Snapshot tên khách tại thời điểm tạo đơn
+  snapshotCustomerName String
+  snapshotCustomerPhone String
+  createdById      String
+
+  deliveryStatus   OrderDeliveryStatus @default(PENDING)
+
+  // Tài chính
+  subtotal         Decimal  @db.Decimal(15, 0)  // Tổng tiền hàng (trước chiết khấu)
+  discountAmount   Decimal  @db.Decimal(15, 0)  @default(0)  // Chiết khấu tổng đơn
+  shippingFee      Decimal  @db.Decimal(15, 0)  @default(0)
+  totalAmount      Decimal  @db.Decimal(15, 0)  // Tổng thanh toán
+
+  // Huỷ/Hoàn
+  cancelReasonId   String?
+  cancelNotes      String?
+
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  cancelReason CancelReason? @relation(fields: [cancelReasonId], references: [id])
+  items        OrderItem[]
+
+  @@index([customerId])
+  @@index([deliveryStatus])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+// ============================================================
+// MODEL: OrderItem (Chi tiết đơn hàng - DATA SNAPSHOT)
+// ============================================================
+model OrderItem {
+  id          String      @id @default(cuid())
+  orderId     String
+  productId   String
+
+  // === DATA SNAPSHOT — KHÔNG THAY ĐỔI SAU KHI TẠO ===
+  snapshotProductName String   // Tên SP tại thời điểm tạo đơn
+  snapshotProductSku  String   // SKU tại thời điểm tạo đơn
+  snapshotProductUnit String   // ĐVT tại thời điểm tạo đơn
+  snapshotUnitPrice   Decimal  @db.Decimal(15, 0)  // Giá sau pricing engine
+  priceSource         PriceSource  // SPECIAL | GROUP | RETAIL
+  pricingNote         String?  // Tooltip: "Áp dụng giá đặc biệt" / "Nhóm Sỉ cấp 1 -10%"
+  // =====================================================
+
+  quantity        Float
+  lineDiscount    Decimal  @db.Decimal(15, 0)  @default(0)  // Chiết khấu trên dòng
+  lineTotal       Decimal  @db.Decimal(15, 0)  // (unitPrice * qty) - lineDiscount
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// Payment model has been removed.
+
+// ============================================================
+// MODEL: CancelReason (Danh mục lý do Huỷ/Hoàn)
+// ============================================================
+model CancelReason {
+  id        String   @id @default(cuid())
+  label     String   @unique  // "Sai SĐT", "Đổi ý", "Giao chậm", "Hàng lỗi"
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  orders Order[]
+
+  @@map("cancel_reasons")
+}
+
+// ============================================================
+// MODEL: AuditLog (Nhật ký thao tác)
+// ============================================================
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      String?
+  userEmail   String?     // Snapshot email tại thời điểm action
+  action      AuditAction
+  entityType  String      // "Order", "Customer", "Product"...
+  entityId    String
+  oldData     Json?       // Dữ liệu trước khi thay đổi
+  newData     Json?       // Dữ liệu sau khi thay đổi
+  ipAddress   String?
+  createdAt   DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// MODEL: CompanySettings (Cài đặt công ty)
+// ============================================================
+model CompanySettings {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  email     String?
+  taxCode   String?
+  logoUrl   String?
+  bankInfo  String?
+  invoiceFooter String?
+  updatedAt DateTime @updatedAt
+
+  @@map("company_settings")
+}

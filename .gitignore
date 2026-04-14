@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+build/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Turbo
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Prisma
+prisma/migrations/dev/
+
+# Uploads
+uploads/
+
+tmp_*
+B?n sao*
