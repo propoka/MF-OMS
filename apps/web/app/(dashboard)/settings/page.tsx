@@ -35,7 +35,7 @@ export default function SettingsPage() {
   const { getToken, user } = useAuth();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<'general' | 'reasons'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'reasons' | 'users'>('general');
 
   // States
   const [company, setCompany] = useState<CompanySettings | null>(null);
