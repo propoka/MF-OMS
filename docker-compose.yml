@@ -16,6 +16,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - oms-network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: mf_oms_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - oms-network
+
+networks:
+  oms-network:
+    driver: bridge
 
 volumes:
   postgres_data:
