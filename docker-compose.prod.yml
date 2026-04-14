@@ -1,22 +1,4 @@
-version: "3.8"
-
 services:
-  nginx:
-    image: nginx:alpine
-    container_name: mf_oms_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/oms.xuanlockontum.com.conf:/etc/nginx/conf.d/default.conf
-      - certbot-www:/var/www/certbot
-      - letsencrypt:/etc/letsencrypt
-    depends_on:
-      - api
-    networks:
-      - oms-network
-
   web:
     build:
       context: .
@@ -25,8 +7,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    expose:
-      - "3000"
+    ports:
+      - "3010:3000"
     depends_on:
       - api
     networks:
@@ -40,8 +22,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    expose:
-      - "3001"
+    ports:
+      - "3011:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,14 +50,6 @@ services:
     networks:
       - oms-network
 
-  certbot:
-    image: certbot/certbot
-    container_name: mf_oms_certbot
-    volumes:
-      - certbot-www:/var/www/certbot
-      - letsencrypt:/etc/letsencrypt
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-
 networks:
   oms-network:
     driver: bridge
@@ -83,5 +57,3 @@ networks:
 volumes:
   postgres_data:
     name: mf_oms_postgres_data
-  certbot-www:
-  letsencrypt:
