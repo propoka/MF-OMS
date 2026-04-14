@@ -2,6 +2,9 @@
 FROM node:22-alpine AS builder
 RUN apk add --no-cache openssl && npm install -g pnpm@9
 
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 WORKDIR /app
 
 # Copy only apps/web files (standalone, no workspace)
