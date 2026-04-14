@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: "https://oms.xuanlockontum.com/api"
+        NEXT_PUBLIC_API_URL: "https://oms.xuanlockontum.com"
     container_name: mf_oms_web
     restart: unless-stopped
     env_file:
