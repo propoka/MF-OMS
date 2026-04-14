@@ -52,7 +52,7 @@ export default function SettingsPage() {
   const [isAddingReason, setIsAddingReason] = useState(false);
 
   // New User State
-  const [newUser, setNewUser] = useState({ email: '', fullName: '', password: '', role: 'STAFF' });
+  const [newUser, setNewUser] = useState<{ email: string; fullName: string; password: string; role: 'ADMIN' | 'STAFF' }>({ email: '', fullName: '', password: '', role: 'STAFF' });
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
