@@ -18,7 +18,7 @@ COPY apps/web/hooks ./hooks
 COPY apps/web/lib ./lib
 COPY apps/web/public ./public
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Build Next.js app
 RUN pnpm build
