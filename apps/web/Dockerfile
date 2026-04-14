@@ -55,8 +55,10 @@ COPY apps/web/postcss.config.mjs apps/web/
 COPY apps/web/eslint.config.mjs apps/web/
 COPY apps/web/pnpm-workspace.yaml apps/web/
 COPY apps/web/public apps/web/public
-COPY apps/web/.next apps/web/.next
-COPY apps/web/node_modules apps/web/node_modules
+
+# Copy built artifacts and node_modules from builder
+COPY --from=builder /app/apps/web/.next apps/web/.next
+COPY --from=builder /app/apps/web/node_modules apps/web/node_modules
 COPY --from=builder /app/node_modules node_modules
 COPY --from=builder /app/packages/database/node_modules packages/database/node_modules
 
