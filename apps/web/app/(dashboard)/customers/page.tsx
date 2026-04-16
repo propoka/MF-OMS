@@ -28,7 +28,7 @@ export default function CustomersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const limit = 50;
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -82,7 +82,7 @@ export default function CustomersPage() {
 
       <Card className="glass shadow-sm border-muted/50 overflow-hidden">
         <CardContent className="p-0">
-          <div className="p-6 border-b border-muted/30 flex items-center bg-muted/10">
+          <div className="p-6 border-b border-muted/30 flex items-center justify-between bg-muted/10">
             <div className="relative flex-1 max-w-md shadow-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -91,6 +91,10 @@ export default function CustomersPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+            </div>
+            
+            <div className="text-sm font-medium text-muted-foreground ml-4 shrink-0">
+               Tổng số khách hàng: <span className="font-bold text-foreground">{total}</span>
             </div>
           </div>
           <div className="w-full overflow-auto">
@@ -131,7 +135,7 @@ export default function CustomersPage() {
                   <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-foreground">{c.fullName}</span>
-                      {c.code && (
+                      {c.code && c.code.length < 25 && (
                         <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono bg-muted/50 text-muted-foreground">
                           {c.code}
                         </Badge>

@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCustomerGroupDto, UpdateCustomerGroupDto } from './dto/customer-group.dto';
+import {
+  CreateCustomerGroupDto,
+  UpdateCustomerGroupDto,
+} from './dto/customer-group.dto';
 
 @Injectable()
 export class CustomerGroupsService {
@@ -42,14 +49,18 @@ export class CustomerGroupsService {
     try {
       return await this.prisma.customerGroup.create({ data });
     } catch (e: any) {
-      if (e.code === 'P2002') throw new BadRequestException('Tên nhóm đã tồn tại');
+      if (e.code === 'P2002')
+        throw new BadRequestException('Tên nhóm đã tồn tại');
       throw e;
     }
   }
 
   async update(id: string, data: UpdateCustomerGroupDto) {
-    const existing = await this.prisma.customerGroup.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Không tìm thấy nhóm khách hàng');
+    const existing = await this.prisma.customerGroup.findUnique({
+      where: { id },
+    });
+    if (!existing)
+      throw new NotFoundException('Không tìm thấy nhóm khách hàng');
 
     if (data.isDefault && !existing.isDefault) {
       await this.prisma.customerGroup.updateMany({
@@ -64,7 +75,8 @@ export class CustomerGroupsService {
         data,
       });
     } catch (e: any) {
-      if (e.code === 'P2002') throw new BadRequestException('Tên nhóm đã tồn tại');
+      if (e.code === 'P2002')
+        throw new BadRequestException('Tên nhóm đã tồn tại');
       throw e;
     }
   }
@@ -77,9 +89,14 @@ export class CustomerGroupsService {
       },
     });
 
-    if (!existing) throw new NotFoundException('Không tìm thấy nhóm khách hàng');
-    if (existing.isDefault) throw new BadRequestException('Không thể xoá nhóm khách hàng mặc định');
-    if (existing._count.customers > 0) throw new BadRequestException('Không thể xoá nhóm đang có khách hàng liên kết');
+    if (!existing)
+      throw new NotFoundException('Không tìm thấy nhóm khách hàng');
+    if (existing.isDefault)
+      throw new BadRequestException('Không thể xoá nhóm khách hàng mặc định');
+    if (existing._count.customers > 0)
+      throw new BadRequestException(
+        'Không thể xoá nhóm đang có khách hàng liên kết',
+      );
 
     return this.prisma.customerGroup.delete({ where: { id } });
   }

@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  Matches,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
@@ -20,10 +26,10 @@ export class CreateCustomerDto {
   @IsNotEmpty({ message: 'Tên khách hàng không được để trống' })
   fullName: string;
 
-  @ApiProperty({ description: 'ID của nhóm khách hàng' })
+  @ApiProperty({ description: 'ID của nhóm khách hàng (tùy chọn khi import)' })
   @IsString()
-  @IsNotEmpty()
-  groupId: string;
+  @IsOptional()
+  groupId?: string;
 
   @ApiPropertyOptional()
   @IsString()

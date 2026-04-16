@@ -22,6 +22,7 @@ export default function OrderEditClient() {
   // Master data
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedCustomerObj, setSelectedCustomerObj] = useState<Customer | null>(null);
   
   // Selections
   const [customerId, setCustomerId] = useState<string>('');
@@ -52,26 +53,33 @@ export default function OrderEditClient() {
     async function loadData() {
       try {
         const token = getToken()!;
-        const [custRes, prodRes, orderRes] = await Promise.all([
-          crmApi.getCustomers(token, { take: 500 }),
-          productsApi.getProducts(token, { take: 1000 }),
-          ordersApi.getOrder(token, orderId)
+        const orderRes = await ordersApi.getOrder(token, orderId);
+        const order = orderRes;
+
+        const [custRes, prodRes] = await Promise.all([
+          crmApi.getCustomers(token, { take: 50, search: order.snapshotCustomerPhone || undefined }),
+          productsApi.getProducts(token, { take: 50 })
         ]);
         
-        const activeCustomers = custRes.data.filter(c => c.isActive);
+        let activeCustomers = custRes.data.filter(c => c.isActive);
         const activeProducts = prodRes.data.filter(p => p.isActive);
         
+        if (order.customer && !activeCustomers.some(c => c.id === order.customerId)) {
+          activeCustomers = [order.customer, ...activeCustomers];
+        }
+
         setCustomers(activeCustomers);
         setProducts(activeProducts);
         
-        const order = orderRes;
+        // const order = orderRes; // Đã khai báo đầu hàm
         if (order.deliveryStatus !== 'PENDING') {
-            toast.warning('Chỉ đơn hàng Đang xử lý mới được phép chỉnh sửa!');
+            toast.warning('Chỉ đơn hàng Chờ xử lý mới được phép chỉnh sửa!');
             router.push(`/orders/${orderId}`);
             return;
         }
 
         setCustomerId(order.customerId);
+        if (order.customer) setSelectedCustomerObj(order.customer);
         setSearchCustomer(order.snapshotCustomerPhone || order.snapshotCustomerName);
         setShippingFee(Number(order.shippingFee) || 0);
         setOrderState(order);
@@ -143,21 +151,23 @@ export default function OrderEditClient() {
     return () => clearTimeout(timer);
   }, [customerId, cart, getToken]);
 
-  const filteredProducts = useMemo(() => {
-    if (!searchProduct) return products;
-    const lower = searchProduct.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(lower) || p.sku.toLowerCase().includes(lower));
-  }, [products, searchProduct]);
+  // Async search for products
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      productsApi.getProducts(getToken()!, { search: searchProduct, take: 50 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchProduct, getToken]);
 
-  const filteredCustomers = useMemo(() => {
-    if (!searchCustomer) return customers.slice(0, 50); // Show max 50 default
-    const lower = searchCustomer.toLowerCase();
-    return customers.filter(c =>
-      c.fullName.toLowerCase().includes(lower) || (c.phone && c.phone.includes(lower))
-    );
-  }, [customers, searchCustomer]);
+  // Async search for customers
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      crmApi.getCustomers(getToken()!, { search: searchCustomer, take: 50 }).then(res => setCustomers(res.data.filter(c => c.isActive))).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchCustomer, getToken]);
 
-  const selectedCustomer = useMemo(() => customers.find(c => c.id === customerId), [customers, customerId]);
+  const selectedCustomer = selectedCustomerObj;
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -170,7 +180,7 @@ export default function OrderEditClient() {
   };
 
   const updateQuantity = (productId: string, rawQuantity: number | string) => {
-    let sanitized = typeof rawQuantity === 'string' ? rawQuantity.replace(/[^0-9.,]/g, '') : rawQuantity;
+    const sanitized = typeof rawQuantity === 'string' ? rawQuantity.replace(/[^0-9.,]/g, '') : rawQuantity;
     if (typeof sanitized === 'number' && sanitized < 0) return;
     setCart(prev => prev.map(item => item.product.id === productId ? { ...item, quantity: sanitized as any } : item));
   };
@@ -185,7 +195,8 @@ export default function OrderEditClient() {
   const getAbsoluteDiscount = (item: { product: Product, quantity: any, discount: number, discountType?: 'amount' | 'percent' }) => {
     if (item.discountType === 'percent') {
       const qty = parseQty(item.quantity);
-      return Math.round((item.product.retailPrice * qty) * (item.discount || 0) / 100);
+      const actualUnitPrice = pricedItems[item.product.id]?.unitPrice ?? item.product.retailPrice;
+      return Math.round((actualUnitPrice * qty) * (item.discount || 0) / 100);
     }
     return item.discount || 0;
   };
@@ -230,9 +241,9 @@ export default function OrderEditClient() {
           quantity: parseQty(c.quantity), 
           manualDiscount: getAbsoluteDiscount(c)
         })),
-        discountAmount: 0,
+        discountAmount: Number(orderState?.discountAmount) || 0,
         shippingFee,
-        notes: ''
+        notes: orderState?.notes || ''
       };
       await ordersApi.updateOrder(getToken()!, orderId, payload);
       toast.success('Lưu phiên bản mới của đơn hàng hoàn tất!');
@@ -261,7 +272,7 @@ export default function OrderEditClient() {
           <div className="flex-1 min-w-0">
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
               Chỉnh sửa Hóa đơn {orderState?.orderNumber || '...'}
-              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 shadow-sm px-3 py-1">Đang xử lý</Badge>
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 shadow-sm px-3 py-1">Chờ xác nhận</Badge>
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               Ngày lập: {orderState ? new Date(orderState.createdAt).toLocaleString('vi-VN') : '...'} <span className="mx-1">•</span> Thu ngân: {orderState?.createdBy?.fullName || 'Hệ thống'}
@@ -300,15 +311,16 @@ export default function OrderEditClient() {
                     />
                     {showCustomerDropdown && (
                       <div className="absolute z-50 mt-1 w-full bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
-                        {filteredCustomers.length === 0 ? (
+                        {customers.length === 0 ? (
                           <div className="p-3 text-sm text-muted-foreground text-center">Không tìm thấy</div>
                         ) : (
-                          filteredCustomers.map(c => (
+                          customers.map(c => (
                             <div 
                               key={c.id} 
                               className="p-3 hover:bg-muted cursor-pointer flex flex-col border-b last:border-0"
                               onClick={() => {
                                 setCustomerId(c.id);
+                                setSelectedCustomerObj(c);
                                 setSearchCustomer(c.phone || '');
                                 setShowCustomerDropdown(false);
                               }}
@@ -333,7 +345,7 @@ export default function OrderEditClient() {
                       </div>
                       <div className="text-xs text-primary/80 mt-0.5">{selectedCustomer.phone}</div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSearchCustomer('');}} className="h-7 w-7 p-0 shrink-0 text-primary hover:text-primary hover:bg-primary/20 rounded-full focus-visible:ring-0">
+                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSelectedCustomerObj(null); setSearchCustomer('');}} className="h-7 w-7 p-0 shrink-0 text-primary hover:text-primary hover:bg-primary/20 rounded-full focus-visible:ring-0">
                       <X size={16} />
                     </Button>
                   </div>
@@ -356,7 +368,7 @@ export default function OrderEditClient() {
                 </div>
                 
                 <div className="flex flex-col gap-2 overflow-y-auto pr-1 flex-1 content-start mt-2">
-                  {filteredProducts.map(p => (
+                  {products.map(p => (
                     <div 
                       key={p.id} 
                       className="border border-muted/60 bg-card p-2.5 px-3 rounded-lg flex items-center justify-between hover:border-primary hover:bg-primary/10 cursor-pointer transition-colors group shadow-sm" 
@@ -452,7 +464,7 @@ export default function OrderEditClient() {
                                   type="text" 
                                   value={c.discount === 0 ? '' : (c.discountType === 'percent' ? c.discount : new Intl.NumberFormat('vi-VN').format(c.discount))} 
                                   onChange={e => {
-                                    let val = e.target.value.replace(/\D/g, '');
+                                    const val = e.target.value.replace(/\D/g, '');
                                     if (c.discountType === 'percent') {
                                       let n = Number(val);
                                       if (n > 100) n = 100;
@@ -571,6 +583,7 @@ export default function OrderEditClient() {
               return [newCustomer, ...prev];
             });
             setCustomerId(newCustomer.id);
+            setSelectedCustomerObj(newCustomer);
             setSearchCustomer(newCustomer.phone || newCustomer.fullName);
             setShowCustomerDropdown(false);
           }

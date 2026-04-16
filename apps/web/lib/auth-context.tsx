@@ -56,10 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   // ── Auto Refresh ──────────────────────────────────────────────────────────
-  // Dùng useRef để lưu hàm schedule, tránh circular dependency trong useCallback
-  const scheduleTokenRefreshRef = useRef<((token: string) => void) | undefined>(undefined);
-
-  scheduleTokenRefreshRef.current = (token: string) => {
+  const scheduleTokenRefresh = useCallback(function refreshAction(token: string) {
     // Clear timer cũ
     if (refreshTimerRef.current) {
       clearTimeout(refreshTimerRef.current);
@@ -82,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         document.cookie = `${TOKEN_KEY}=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
         setState(prev => ({ ...prev, accessToken: data.accessToken }));
         // Schedule lần tiếp theo
-        scheduleTokenRefreshRef.current?.(data.accessToken);
+        refreshAction(data.accessToken);
       } catch {
         // Refresh thất bại → clear session và về login
         localStorage.removeItem(TOKEN_KEY);
@@ -100,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       refreshTimerRef.current = setTimeout(doRefresh, delay);
     }
-  };
+  }, []);
 
   // ── Restore session khi mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -117,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isAuthenticated: true,
         });
         // Schedule auto-refresh nếu token còn hạn
-        scheduleTokenRefreshRef.current?.(token);
+        scheduleTokenRefresh(token);
         return;
       } catch {
         // Data bị corrupt, clear đi
@@ -171,14 +168,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: true,
     });
 
-    scheduleTokenRefreshRef.current?.(data.accessToken);
-  }, []); // Không dependency vào bất cứ thứ gì có thể thay đổi
+    scheduleTokenRefresh(data.accessToken);
+  }, [scheduleTokenRefresh]); 
 
   // ── Logout ────────────────────────────────────────────────────────────────
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     if (refreshTimerRef.current) {
       clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = null;
+    }
+
+    // Call backend to revoke refresh token
+    const currentToken = state.accessToken || localStorage.getItem(TOKEN_KEY);
+    if (currentToken) {
+      try {
+        await authApi.logout(currentToken);
+      } catch {
+        // Ignore API error on logout
+      }
     }
 
     localStorage.removeItem(TOKEN_KEY);
@@ -194,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     routerRef.current.push('/login');
-  }, []); // Không dependency
+  }, [state.accessToken]); // Thêm dependency để lấy token hiện tại
 
   // ── getToken ──────────────────────────────────────────────────────────────
   const getToken = useCallback(() => {

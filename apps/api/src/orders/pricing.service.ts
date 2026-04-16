@@ -19,7 +19,7 @@ export class PricingEngineService {
       include: {
         group: true,
         specialPrices: {
-          where: { productId: { in: items.map(i => i.productId) } },
+          where: { productId: { in: items.map((i) => i.productId) } },
         },
       },
     });
@@ -30,7 +30,7 @@ export class PricingEngineService {
 
     // 2. Fetch Products with GroupPrices for customer's group
     const products = await this.prisma.product.findMany({
-      where: { id: { in: items.map(i => i.productId) } },
+      where: { id: { in: items.map((i) => i.productId) } },
       include: {
         groupPrices: {
           where: { groupId: customer.groupId },
@@ -38,17 +38,25 @@ export class PricingEngineService {
       },
     });
 
-    // 3. Process each item to find the best price
+    // 3. Fetch CompanySettings for treatBlankAsZero rule
+    const settings = await this.prisma.companySettings.findFirst();
+    const treatBlankAsZero = settings?.treatBlankAsZero ?? false;
+
+    // 4. Process each item to find the best price
     const orderItemsData: any[] = [];
     let subtotal = new Prisma.Decimal(0);
 
     for (const itemInput of items) {
-      const product = products.find(p => p.id === itemInput.productId);
+      const product = products.find((p) => p.id === itemInput.productId);
       if (!product) {
-        throw new BadRequestException(`Không tìm thấy sản phẩm ID ${itemInput.productId}`);
+        throw new BadRequestException(
+          `Không tìm thấy sản phẩm ID ${itemInput.productId}`,
+        );
       }
       if (!product.isActive) {
-        throw new BadRequestException(`Sản phẩm ${product.name} đang ngừng kinh doanh`);
+        throw new BadRequestException(
+          `Sản phẩm ${product.name} đang ngừng kinh doanh`,
+        );
       }
 
       let finalPrice = new Prisma.Decimal(product.retailPrice);
@@ -56,13 +64,22 @@ export class PricingEngineService {
       let note = 'Áp dụng giá bán lẻ';
 
       // Rules: SPECIAL > GROUP > RETAIL
-      const specialPriceDoc = customer.specialPrices.find(sp => sp.productId === product.id);
-      
-      if (specialPriceDoc) {
+      const specialPriceDoc = customer.specialPrices.find(
+        (sp) => sp.productId === product.id,
+      );
+      let specialPriceValue = specialPriceDoc
+        ? Number(specialPriceDoc.price)
+        : null;
+      if (!treatBlankAsZero && specialPriceValue === 0)
+        specialPriceValue = null;
+
+      if (specialPriceValue !== null) {
         // Có giá đặc biệt
-        finalPrice = specialPriceDoc.price;
+        finalPrice = new Prisma.Decimal(specialPriceValue);
         source = 'SPECIAL';
-        note = specialPriceDoc.notes ? `Giá Đặc Biệt: ${specialPriceDoc.notes}` : 'Lấy từ Bảng giá Đặc biệt của Khách hàng';
+        note = specialPriceDoc?.notes
+          ? `Giá Đặc Biệt: ${specialPriceDoc.notes}`
+          : 'Lấy từ Bảng giá Đặc biệt của Khách hàng';
       } else {
         // Không có giá đặc biệt, xét giá Nhóm
         if (customer.group) {
@@ -70,25 +87,44 @@ export class PricingEngineService {
             const groupPriceDoc = product.groupPrices?.find(
               (gp) => gp.groupId === customer.groupId,
             );
-            if (groupPriceDoc && groupPriceDoc.fixedPrice != null) {
-              finalPrice = groupPriceDoc.fixedPrice;
+
+            let groupFixedValue =
+              groupPriceDoc && groupPriceDoc.fixedPrice != null
+                ? Number(groupPriceDoc.fixedPrice)
+                : null;
+            if (!treatBlankAsZero && groupFixedValue === 0)
+              groupFixedValue = null;
+
+            if (groupFixedValue !== null) {
+              finalPrice = new Prisma.Decimal(groupFixedValue);
               source = 'GROUP';
               note = `Áp dụng bảng giá tĩnh nhóm: ${customer.group.name}`;
             }
-          } else if (customer.group.priceType === 'PERCENTAGE' && customer.group.discountPercent != null) {
+          } else if (
+            customer.group.priceType === 'PERCENTAGE' &&
+            customer.group.discountPercent != null
+          ) {
             // Giảm theo phần trăm
-            const discount = new Prisma.Decimal(customer.group.discountPercent).dividedBy(100);
-            finalPrice = new Prisma.Decimal(product.retailPrice).times(new Prisma.Decimal(1).minus(discount));
+            const discount = new Prisma.Decimal(
+              customer.group.discountPercent,
+            ).dividedBy(100);
+            finalPrice = new Prisma.Decimal(product.retailPrice).times(
+              new Prisma.Decimal(1).minus(discount),
+            );
             source = 'GROUP';
             note = `Áp dụng chiết khấu nhóm ${customer.group.name} (-${customer.group.discountPercent}%)`;
           }
         }
       }
 
-      const discount = new Prisma.Decimal(itemInput.manualDiscount || 0);
-      let lineTotal = finalPrice.times(itemInput.quantity).minus(discount);
+      let discount = new Prisma.Decimal(itemInput.manualDiscount || 0);
+      const grossLineTotal = finalPrice.times(itemInput.quantity);
+      let lineTotal = grossLineTotal.minus(discount);
+
+      // Clamp both lineTotal and discount if the discount exceeds the total goods value
       if (lineTotal.lessThan(0)) {
         lineTotal = new Prisma.Decimal(0);
+        discount = grossLineTotal;
       }
       subtotal = subtotal.add(lineTotal);
 

@@ -22,7 +22,7 @@ export function AdvancedTab() {
   const [importType, setImportType] = useState<string | null>(null);
 
   const handleDeleteAll = async () => {
-    if (advancedActionConfirmText !== 'XOA-ALL') {
+    if (advancedActionConfirmText.toUpperCase() !== 'XOA-ALL') {
       toast.error('Vui lòng gõ chính xác XOA-ALL để xác nhận.');
       return;
     }
@@ -62,6 +62,20 @@ export function AdvancedTab() {
       setIsActionLoading(false);
       setAdvancedActionType(null);
       setAdvancedActionConfirmText('');
+    }
+  };
+
+  const handleSeedLocalData = async () => {
+    try {
+      setIsActionLoading(true);
+      const token = getToken()!;
+      const toastId = toast.loading('Đang đọc file gốc và đồng bộ, vui lòng không tắt trang...');
+      const res = await advancedApi.seedLocalData(token);
+      toast.success(res.message || 'Đã import dữ liệu gốc thành công!', { id: toastId });
+    } catch (e: any) {
+      toast.error(e.message || 'Xảy ra lỗi khi chạy lệnh Import gốc.');
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -196,6 +210,28 @@ export function AdvancedTab() {
 
         <div className="w-2/3 h-px bg-gradient-to-r from-border/10 via-border/60 to-border/10 mx-auto" />
 
+        {/* Seed Local Section */}
+        <section>
+           <h3 className="text-base font-bold mb-4 flex items-center gap-2 text-foreground">
+             <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary">
+               <ListTree className="w-3.5 h-3.5" />
+             </div>
+             Phục hồi Dữ Liệu (Backup SQL)
+           </h3>
+           <div className="p-5 border rounded-2xl bg-gradient-to-br from-background to-muted/20 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex-1">
+                 <h4 className="font-bold text-sm">Chạy Kịch Bản Khôi Phục Cài Đặt Gốc</h4>
+                 <p className="text-xs text-muted-foreground mt-1">Lệnh này sẽ dọn sạch toàn bộ rác và dữ liệu hiện hành (chỉ giữ lại duy nhất tài khoản admin <strong>poka@poka.us</strong>) và tự động khôi phục dữ liệu từ file backup `oms_db_backup.sql` nằm trong thư mục `apps/web/public`.</p>
+              </div>
+              <Button onClick={handleSeedLocalData} disabled={isActionLoading} className="shadow-md font-semibold px-6 shrink-0">
+                {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Settings className="w-4 h-4 mr-2" />}
+                Thực thi Nạp Backup
+              </Button>
+           </div>
+        </section>
+
+        <div className="w-2/3 h-px bg-gradient-to-r from-border/10 via-border/60 to-border/10 mx-auto" />
+
         {/* Delete Section */}
         <section>
            <h3 className="text-base font-bold mb-4 flex items-center gap-2 text-destructive">
@@ -247,7 +283,7 @@ export function AdvancedTab() {
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
               CẢNH BÁO BẢO MẬT DỮ LIỆU
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-foreground/80 pt-2 space-y-4 text-sm font-medium">
+            <AlertDialogDescription render={<div />} className="text-foreground/80 pt-2 space-y-4 text-sm font-medium">
               <p>Bạn sắp thực thi một lệnh xóa dữ liệu hàng loạt trên máy chủ. Hành động này là <strong>vĩnh viễn và không thể khôi phục</strong>.</p>
               <div className="bg-destructive/10 p-3 rounded-md text-destructive">
                  Để hoàn tất thủ tục xác nhận, vui lòng nhập chính xác từ khoá bảo mật: <strong className="select-none inline-block px-1 bg-destructive/20 rounded">XOA-ALL</strong>
@@ -267,7 +303,7 @@ export function AdvancedTab() {
             <AlertDialogCancel className="hover:bg-muted bg-transparent border-0">Huỷ bỏ thao tác</AlertDialogCancel>
             <AlertDialogAction 
               onClick={(e) => { e.preventDefault(); handleDeleteAll(); }} 
-              disabled={advancedActionConfirmText !== 'XOA-ALL' || isActionLoading}
+              disabled={advancedActionConfirmText.toUpperCase() !== 'XOA-ALL' || isActionLoading}
               className="bg-destructive hover:bg-destructive/90 text-white font-bold"
             >
               {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xác nhận Rủi ro Thực thi'}

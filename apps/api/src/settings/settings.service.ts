@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -15,7 +19,7 @@ export class SettingsService {
           name: 'MF Company',
           address: '123 Enterprise St',
           phone: '0123456789',
-        }
+        },
       });
     }
     return settings;
@@ -37,7 +41,11 @@ export class SettingsService {
     });
   }
 
-  async createCancelReason(data: { label: string; sortOrder?: number; isActive?: boolean }) {
+  async createCancelReason(data: {
+    label: string;
+    sortOrder?: number;
+    isActive?: boolean;
+  }) {
     try {
       return await this.prisma.cancelReason.create({ data });
     } catch (e: any) {
@@ -48,8 +56,13 @@ export class SettingsService {
     }
   }
 
-  async updateCancelReason(id: string, data: Partial<{ label: string; sortOrder: number; isActive: boolean }>) {
-    const existing = await this.prisma.cancelReason.findUnique({ where: { id } });
+  async updateCancelReason(
+    id: string,
+    data: Partial<{ label: string; sortOrder: number; isActive: boolean }>,
+  ) {
+    const existing = await this.prisma.cancelReason.findUnique({
+      where: { id },
+    });
     if (!existing) throw new NotFoundException('Không tìm thấy lý do huỷ');
     try {
       return await this.prisma.cancelReason.update({
@@ -72,10 +85,9 @@ export class SettingsService {
     if (!existing) throw new NotFoundException('Không tìm thấy lý do huỷ');
     if (existing._count.orders > 0) {
       throw new BadRequestException(
-        `Lý do "${existing.label}" đang được sử dụng bởi ${existing._count.orders} đơn hàng. Hãy vô hiệu hoá thay vì xoá.`
+        `Lý do "${existing.label}" đang được sử dụng bởi ${existing._count.orders} đơn hàng. Hãy vô hiệu hoá thay vì xoá.`,
       );
     }
     return this.prisma.cancelReason.delete({ where: { id } });
   }
 }
-

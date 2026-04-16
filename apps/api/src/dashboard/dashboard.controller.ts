@@ -18,7 +18,7 @@ export class DashboardController {
   @ApiOperation({ summary: 'Lấy dữ liệu báo cáo tuỳ chỉnh theo ngày' })
   getReport(
     @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string
+    @Query('endDate') endDate?: string,
   ) {
     return this.dashboardService.getReport(startDate, endDate);
   }

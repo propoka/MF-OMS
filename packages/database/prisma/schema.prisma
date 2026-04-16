@@ -320,6 +320,7 @@ model CompanySettings {
   logoUrl   String?
   bankInfo  String?
   invoiceFooter String?
+  treatBlankAsZero Boolean @default(false)
   updatedAt DateTime @updatedAt
 
   @@map("company_settings")

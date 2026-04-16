@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { productsApi, crmApi, categoriesApi, Product, CustomerGroup, ProductCategory } from '@/lib/api';
+import { productsApi, crmApi, categoriesApi, settingsApi, Product, CustomerGroup, ProductCategory } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import {
   Dialog,
@@ -47,14 +47,16 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, initialDa
   const [groups, setGroups] = useState<CustomerGroup[]>([]);
   const [groupPrices, setGroupPrices] = useState<Record<string, string>>({}); // groupId -> fixedPrice string
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [treatBlankAsZero, setTreatBlankAsZero] = useState(false);
 
   const fetchGroupsAndCategories = async () => {
     const token = getToken();
     if (!token) return;
     try {
-      const [resGroups, resCats] = await Promise.all([
+      const [resGroups, resCats, resSettings] = await Promise.all([
         crmApi.getGroups(token),
-        categoriesApi.getCategories(token)
+        categoriesApi.getCategories(token),
+        settingsApi.getCompanySettings(token)
       ]);
       const filtered = resGroups.filter(g => g.priceType === 'FIXED');
       filtered.sort((a, b) => {
@@ -66,6 +68,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, initialDa
       });
       setGroups(filtered);
       setCategories(resCats);
+      setTreatBlankAsZero(resSettings.treatBlankAsZero || false);
     } catch (err) {}
   };
 
@@ -126,10 +129,14 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, initialDa
     setIsSubmitting(true);
     
     // Prepare payload
-    const gpArray = groups.map(g => ({
-      groupId: g.id,
-      fixedPrice: groupPrices[g.id] && groupPrices[g.id].trim() !== '' ? Number(groupPrices[g.id]) : 0
-    }));
+    const gpArray = groups.map(g => {
+      const isBlank = !groupPrices[g.id] || groupPrices[g.id].trim() === '';
+      if (isBlank && !treatBlankAsZero) return null;
+      return {
+        groupId: g.id,
+        fixedPrice: isBlank ? 0 : Number(groupPrices[g.id])
+      };
+    }).filter(Boolean);
 
     const payload: Partial<Product> = {
       name,

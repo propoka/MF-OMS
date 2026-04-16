@@ -23,9 +23,9 @@ async function bootstrap() {
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,          // Strip unknown properties
+      whitelist: true, // Strip unknown properties
       forbidNonWhitelisted: true,
-      transform: true,          // Auto-transform payloads to DTO instances
+      transform: true, // Auto-transform payloads to DTO instances
       transformOptions: {
         enableImplicitConversion: true,
       },
@@ -49,4 +49,4 @@ async function bootstrap() {
   console.log(`🚀 API running on: http://localhost:${port}/api`);
   console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
 }
-bootstrap();
+bootstrap().catch(console.error);

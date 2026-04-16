@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  BadRequestException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -29,9 +38,9 @@ export class UsersController {
     if (existing) {
       throw new BadRequestException('Email đã tồn tại trên hệ thống.');
     }
-    
+
     const passwordHash = await bcrypt.hash(createUserDto.password, 10);
-    
+
     return this.usersService.create({
       email: createUserDto.email,
       fullName: createUserDto.fullName,

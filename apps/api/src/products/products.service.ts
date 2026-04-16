@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { Prisma } from '@prisma/client';
@@ -27,8 +31,8 @@ export class ProductsService {
         include: {
           category: { select: { name: true, code: true } },
           groupPrices: {
-            include: { group: { select: { name: true } } }
-          }
+            include: { group: { select: { name: true } } },
+          },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -52,13 +56,16 @@ export class ProductsService {
   async create(data: CreateProductDto) {
     const { groupPrices, categoryId, sku, ...productData } = data;
     try {
-      if (!categoryId) throw new BadRequestException('Bắt buộc phải chọn danh mục sản phẩm');
+      if (!categoryId)
+        throw new BadRequestException('Bắt buộc phải chọn danh mục sản phẩm');
 
-      const category = await this.prisma.productCategory.findUnique({ where: { id: categoryId } });
+      const category = await this.prisma.productCategory.findUnique({
+        where: { id: categoryId },
+      });
       if (!category) throw new NotFoundException('Không tìm thấy danh mục');
 
       let newSku = sku;
-      
+
       // Nếu user không truyền SKU, tự auto-generate
       if (!newSku) {
         newSku = await this.getNextSku(categoryId);
@@ -69,17 +76,25 @@ export class ProductsService {
           ...productData,
           sku: newSku,
           categoryId,
-          groupPrices: groupPrices?.length ? {
-            create: groupPrices.map(gp => ({
-              groupId: gp.groupId,
-              fixedPrice: gp.fixedPrice,
-            }))
-          } : undefined
+          groupPrices: groupPrices?.length
+            ? {
+                create: groupPrices
+                  .filter(
+                    (gp) =>
+                      Number(gp.fixedPrice) !== Number(productData.retailPrice),
+                  )
+                  .map((gp) => ({
+                    groupId: gp.groupId,
+                    fixedPrice: gp.fixedPrice,
+                  })),
+              }
+            : undefined,
         },
-        include: { groupPrices: true, category: true }
+        include: { groupPrices: true, category: true },
       });
     } catch (e: any) {
-      if (e.code === 'P2002') throw new BadRequestException('Mã SKU đã tồn tại');
+      if (e.code === 'P2002')
+        throw new BadRequestException('Mã SKU đã tồn tại');
       throw e;
     }
   }
@@ -96,8 +111,8 @@ export class ProductsService {
         const updated = await tx.product.update({
           where: { id },
           data: {
-             ...productData,
-             categoryId: data.categoryId,
+            ...productData,
+            categoryId: data.categoryId,
           },
         });
 
@@ -105,29 +120,36 @@ export class ProductsService {
         if (groupPrices !== undefined) {
           // Xoá hết giá nhóm cũ
           await tx.productGroupPrice.deleteMany({
-            where: { productId: id }
+            where: { productId: id },
           });
-          
-          // Tạo lại giá nhóm mới
+
+          // Tạo lại giá nhóm mới, BỎ QUA những nhóm bằng giá mốc (tránh rác DB)
           if (groupPrices.length > 0) {
-            await tx.productGroupPrice.createMany({
-              data: groupPrices.map(gp => ({
-                productId: id,
-                groupId: gp.groupId,
-                fixedPrice: gp.fixedPrice,
-              }))
-            });
+            const validGroupPrices = groupPrices.filter(
+              (gp) => Number(gp.fixedPrice) !== Number(updated.retailPrice),
+            );
+
+            if (validGroupPrices.length > 0) {
+              await tx.productGroupPrice.createMany({
+                data: validGroupPrices.map((gp) => ({
+                  productId: id,
+                  groupId: gp.groupId,
+                  fixedPrice: gp.fixedPrice,
+                })),
+              });
+            }
           }
         }
 
         // Lấy kết quả cuối
         return await tx.product.findUnique({
           where: { id },
-          include: { groupPrices: true, category: true }
+          include: { groupPrices: true, category: true },
         });
       });
     } catch (e: any) {
-      if (e.code === 'P2002') throw new BadRequestException('Mã SKU đã tồn tại');
+      if (e.code === 'P2002')
+        throw new BadRequestException('Mã SKU đã tồn tại');
       throw e;
     }
   }
@@ -135,19 +157,23 @@ export class ProductsService {
   async remove(id: string) {
     const existing = await this.prisma.product.findUnique({
       where: { id },
-      include: { _count: { select: { orderItems: true } } }
+      include: { _count: { select: { orderItems: true } } },
     });
-    
+
     if (!existing) throw new NotFoundException('Không tìm thấy sản phẩm');
     if (existing._count.orderItems > 0) {
-      throw new BadRequestException('Sản phẩm đã có giao dịch mua bán, không thể xoá. Hãy chọn vô hiệu hoá (isActive = false).');
+      throw new BadRequestException(
+        'Sản phẩm đã có giao dịch mua bán, không thể xoá. Hãy chọn vô hiệu hoá (isActive = false).',
+      );
     }
 
     return this.prisma.product.delete({ where: { id } });
   }
 
   async getNextSku(categoryId: string): Promise<string> {
-    const category = await this.prisma.productCategory.findUnique({ where: { id: categoryId } });
+    const category = await this.prisma.productCategory.findUnique({
+      where: { id: categoryId },
+    });
     if (!category) throw new NotFoundException('Không tìm thấy danh mục');
 
     const productsInCat = await this.prisma.product.findMany({
@@ -156,45 +182,61 @@ export class ProductsService {
     });
 
     let maxNumber = 0;
-    productsInCat.forEach(p => {
-       const match = p.sku.match(/^([A-Z]+)(\d+)$/);
-       if (match && match[1] === category.code) {
-         const num = parseInt(match[2], 10);
-         if (num > maxNumber) maxNumber = num;
-       }
+    productsInCat.forEach((p) => {
+      const match = p.sku.match(/^([A-Z]+)(\d+)$/);
+      if (match && match[1] === category.code) {
+        const num = parseInt(match[2], 10);
+        if (num > maxNumber) maxNumber = num;
+      }
     });
 
     const nextNumber = maxNumber + 1;
     return `${category.code}${nextNumber.toString().padStart(2, '0')}`;
   }
 
-  async import(products: {
-    name: string;
-    sku?: string;
-    categoryCode: string;
-    unit: string;
-    retailPrice: number;
-    weight?: number;
-    dimensions?: string;
-  }[]) {
+  async import(
+    products: {
+      name: string;
+      sku?: string;
+      categoryCode: string;
+      unit: string;
+      retailPrice: number;
+      weight?: number;
+      dimensions?: string;
+    }[],
+  ) {
     let successCount = 0;
-    let fallbackCategory = await this.prisma.productCategory.findFirst({ where: { code: 'DEFAULT' } });
+    let fallbackCategory = await this.prisma.productCategory.findFirst({
+      where: { code: 'DEFAULT' },
+    });
     if (!fallbackCategory) {
       fallbackCategory = await this.prisma.productCategory.create({
-        data: { name: 'Chưa phân loại', code: 'DEFAULT' }
+        data: { name: 'Chưa phân loại', code: 'DEFAULT' },
       });
     }
 
     const categories = await this.prisma.productCategory.findMany();
-    const catMap = new Map(categories.map(c => [c.code, c.id]));
+    const catMap = new Map(categories.map((c) => [c.code, c.id]));
 
-    for (const p of products) {
+    // Lọc bỏ dữ liệu rác (tên rỗng, giá âm, không có danh mục)
+    const validProducts = products.filter(
+      (p) =>
+        p.name &&
+        p.unit &&
+        typeof p.retailPrice === 'number' &&
+        p.retailPrice >= 0 &&
+        p.categoryCode,
+    );
+
+    const invalidCount = products.length - validProducts.length;
+
+    for (const p of validProducts) {
       const catId = catMap.get(p.categoryCode) || fallbackCategory.id;
       let skuToUse = p.sku;
       if (!skuToUse) {
         skuToUse = await this.getNextSku(catId);
       }
-      
+
       try {
         await this.prisma.product.create({
           data: {
@@ -206,7 +248,7 @@ export class ProductsService {
             weight: p.weight,
             dimensions: p.dimensions,
             isActive: true,
-          }
+          },
         });
         successCount++;
       } catch (e: any) {
@@ -214,6 +256,10 @@ export class ProductsService {
         // In real app we might log this or return errors array
       }
     }
-    return { successCount, totalTried: products.length };
+    return {
+      successCount,
+      totalTried: validProducts.length,
+      invalidCount, // trả về thêm cho front-end nếu cần
+    };
   }
 }

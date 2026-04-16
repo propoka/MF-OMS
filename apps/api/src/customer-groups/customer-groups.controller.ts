@@ -1,7 +1,18 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CustomerGroupsService } from './customer-groups.service';
-import { CreateCustomerGroupDto, UpdateCustomerGroupDto } from './dto/customer-group.dto';
+import {
+  CreateCustomerGroupDto,
+  UpdateCustomerGroupDto,
+} from './dto/customer-group.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { AuditLog } from '../common/decorators/audit-log.decorator';
@@ -36,7 +47,10 @@ export class CustomerGroupsController {
   @Roles(Role.ADMIN)
   @AuditLog('UPDATE', 'CustomerGroup')
   @ApiOperation({ summary: 'Cập nhật nhóm khách hàng (Chỉ Admin)' })
-  update(@Param('id') id: string, @Body() updateCustomerGroupDto: UpdateCustomerGroupDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateCustomerGroupDto: UpdateCustomerGroupDto,
+  ) {
     return this.customerGroupsService.update(id, updateCustomerGroupDto);
   }
 

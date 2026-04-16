@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { AuditLog } from '../common/decorators/audit-log.decorator';
@@ -13,10 +27,17 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lấy filter danh sách khách hàng (có phân trang & công nợ)' })
+  @ApiOperation({
+    summary: 'Lấy filter danh sách khách hàng (có phân trang & công nợ)',
+  })
   @ApiQuery({ name: 'skip', required: false, type: Number })
   @ApiQuery({ name: 'take', required: false, type: Number })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'SĐT hoặc Tên' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'SĐT hoặc Tên',
+  })
   @ApiQuery({ name: 'groupId', required: false, type: String })
   findAll(
     @Query('skip') skip?: string,
@@ -48,7 +69,9 @@ export class CustomersController {
   @Post('import')
   @Roles(Role.ADMIN)
   @AuditLog('CREATE', 'Customer')
-  @ApiOperation({ summary: 'Import danh sách khách hàng từ Excel (JSON payload)' })
+  @ApiOperation({
+    summary: 'Import danh sách khách hàng từ Excel (JSON payload)',
+  })
   import(@Body() customers: CreateCustomerDto[]) {
     return this.customersService.import(customers);
   }
@@ -56,7 +79,10 @@ export class CustomersController {
   @Patch(':id')
   @AuditLog('UPDATE', 'Customer')
   @ApiOperation({ summary: 'Cập nhật hồ sơ khách hàng' })
-  update(@Param('id') id: string, @Body() updateCustomerDto: UpdateCustomerDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateCustomerDto: UpdateCustomerDto,
+  ) {
     return this.customersService.update(id, updateCustomerDto);
   }
 

@@ -162,9 +162,9 @@ export default function OrderDetailPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 shadow-sm px-3 py-1">Đang xử lý</Badge>;
-      case 'PROCESSING': return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 shadow-sm px-3 py-1">Đang giao</Badge>;
-      case 'SHIPPING': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-sm px-3 py-1">Đã giao</Badge>;
+      case 'PENDING': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 shadow-sm px-3 py-1">Chờ xác nhận</Badge>;
+      case 'PROCESSING': return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 shadow-sm px-3 py-1">Đang xử lý</Badge>;
+      case 'SHIPPING': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-sm px-3 py-1">Đang giao</Badge>;
       case 'COMPLETED': return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm px-3 py-1">Hoàn thành</Badge>;
       case 'CANCELLED': return <Badge variant="destructive" className="shadow-sm px-3 py-1">Huỷ</Badge>;
       case 'RETURNED': return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shadow-sm px-3 py-1">Hoàn trả</Badge>;
@@ -175,9 +175,9 @@ export default function OrderDetailPage() {
   const getStatusLabel = (status: string) => {
     const s = (status || '').toUpperCase();
     const map: Record<string, string> = {
-      'PENDING': 'Đang xử lý',
-      'PROCESSING': 'Đang giao',
-      'SHIPPING': 'Đã giao',
+      'PENDING': 'Chờ xác nhận',
+      'PROCESSING': 'Đang xử lý',
+      'SHIPPING': 'Đang giao',
       'COMPLETED': 'Hoàn thành',
       'RETURNED': 'Hoàn trả',
       'CANCELLED': 'Huỷ'
@@ -191,6 +191,17 @@ export default function OrderDetailPage() {
 
   const normalizedStatus = (order.deliveryStatus || '').toUpperCase();
   const isCancelled = ['CANCELLED', 'RETURNED'].includes(normalizedStatus);
+  const isCancellable = ['PENDING', 'PROCESSING'].includes(normalizedStatus);
+
+  const VALID_TRANSITIONS: Record<string, string[]> = {
+    PENDING:    ['PROCESSING', 'CANCELLED'],
+    PROCESSING: ['SHIPPING', 'CANCELLED'],
+    SHIPPING:   ['COMPLETED', 'RETURNED'],
+    COMPLETED:  ['RETURNED'],
+    RETURNED:   [],
+    CANCELLED:  [],
+  };
+  const allowedTransitions = VALID_TRANSITIONS[normalizedStatus] || [];
   const totalDiscount = Number(order.discountAmount || 0) + (order.items?.reduce((sum, item) => sum + Number(item.lineDiscount || 0), 0) || 0);
   const totalQuantity = order.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) || 0;
 
@@ -218,7 +229,7 @@ export default function OrderDetailPage() {
               </Button>
             </Link>
           )}
-          {!isCancelled && (
+          {isCancellable && (
               <Button variant="outline" onClick={() => setIsCancelModalOpen(true)} className="shadow-sm text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors">
                 <ShieldAlert className="mr-2 h-4 w-4" /> Huỷ đơn hàng
               </Button>
@@ -530,12 +541,17 @@ export default function OrderDetailPage() {
                   <SelectValue>{getStatusLabel(normalizedStatus)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PENDING" className="py-2 cursor-pointer">Đang xử lý</SelectItem>
-                  <SelectItem value="PROCESSING" className="py-2 cursor-pointer">Đang giao</SelectItem>
-                  <SelectItem value="SHIPPING" className="py-2 cursor-pointer">Đã giao</SelectItem>
-                  <SelectItem value="COMPLETED" className="py-2 cursor-pointer font-medium text-emerald-700">Hoàn thành</SelectItem>
-                  <SelectItem value="RETURNED" className="py-2 cursor-pointer text-orange-600">Hoàn trả</SelectItem>
-                  <SelectItem value="CANCELLED" disabled className="py-2">Huỷ</SelectItem>
+                  {/* Luôn hiển thị trạng thái hiện tại */}
+                  <SelectItem value={normalizedStatus} className="py-2 cursor-pointer font-semibold text-primary">{getStatusLabel(normalizedStatus)}</SelectItem>
+                  {allowedTransitions.map(tr => {
+                    if (tr === 'PENDING') return <SelectItem key={tr} value="PENDING" className="py-2 cursor-pointer">Chờ xác nhận</SelectItem>;
+                    if (tr === 'PROCESSING') return <SelectItem key={tr} value="PROCESSING" className="py-2 cursor-pointer">Đang xử lý</SelectItem>;
+                    if (tr === 'SHIPPING') return <SelectItem key={tr} value="SHIPPING" className="py-2 cursor-pointer">Đang giao</SelectItem>;
+                    if (tr === 'COMPLETED') return <SelectItem key={tr} value="COMPLETED" className="py-2 cursor-pointer font-medium text-emerald-700">Hoàn thành</SelectItem>;
+                    if (tr === 'RETURNED') return <SelectItem key={tr} value="RETURNED" className="py-2 cursor-pointer text-orange-600">Hoàn trả</SelectItem>;
+                    if (tr === 'CANCELLED') return <SelectItem key={tr} value="CANCELLED" className="py-2">Huỷ</SelectItem>;
+                    return null;
+                  })}
                 </SelectContent>
               </Select>
             </CardContent>
@@ -714,7 +730,7 @@ export default function OrderDetailPage() {
               <label className="text-sm font-semibold leading-none text-foreground">
                 Lý do huỷ <span className="text-destructive">*</span>
               </label>
-              <Select value={selectedCancelReasonId} onValueChange={setSelectedCancelReasonId}>
+              <Select value={selectedCancelReasonId} onValueChange={(v) => setSelectedCancelReasonId(v ?? '')}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="-- Chọn lý do huỷ --">
                     {selectedCancelReasonId 

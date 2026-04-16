@@ -54,7 +54,12 @@ export class UsersService {
     return user?.refreshTokenHash || null;
   }
 
-  async create(data: { email: string; fullName: string; passwordHash: string; role: any }) {
+  async create(data: {
+    email: string;
+    fullName: string;
+    passwordHash: string;
+    role: any;
+  }) {
     return this.prisma.user.create({
       data: {
         email: data.email,
@@ -62,7 +67,14 @@ export class UsersService {
         passwordHash: data.passwordHash,
         role: data.role,
       },
-      select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
     });
   }
 
@@ -70,7 +82,14 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data: { role },
-      select: { id: true, email: true, fullName: true, role: true, isActive: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
     });
   }
 

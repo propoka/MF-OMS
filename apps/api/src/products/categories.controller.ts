@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { AuditLog } from '../common/decorators/audit-log.decorator';
@@ -35,7 +43,10 @@ export class CategoriesController {
   @Roles(Role.ADMIN)
   @AuditLog('UPDATE', 'ProductCategory')
   @ApiOperation({ summary: 'Cập nhật danh mục' })
-  update(@Param('id') id: string, @Body() body: { name?: string; code?: string; description?: string }) {
+  update(
+    @Param('id') id: string,
+    @Body() body: { name?: string; code?: string; description?: string },
+  ) {
     return this.categoriesService.update(id, body);
   }
 

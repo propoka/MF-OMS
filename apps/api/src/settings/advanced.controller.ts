@@ -1,4 +1,4 @@
-import { Controller, Delete } from '@nestjs/common';
+import { Controller, Delete, Post } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AdvancedService } from './advanced.service';
 import { AuditLog } from '../common/decorators/audit-log.decorator';
@@ -45,5 +45,12 @@ export class AdvancedController {
   @ApiOperation({ summary: 'Xóa tất cả Danh mục SP' })
   deleteAllProductCategories() {
     return this.advancedService.deleteAllProductCategories();
+  }
+
+  @Post('seed-local')
+  @AuditLog('CREATE', 'System')
+  @ApiOperation({ summary: 'Khởi tạo Dữ liệu gốc từ CSV' })
+  seedLocalData() {
+    return this.advancedService.seedLocalData();
   }
 }

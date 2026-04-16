@@ -26,11 +26,16 @@ export class AuthService {
 
     // 2. Kiểm tra tài khoản active
     if (!user.isActive) {
-      throw new UnauthorizedException('Tài khoản đã bị khoá. Vui lòng liên hệ quản trị viên.');
+      throw new UnauthorizedException(
+        'Tài khoản đã bị khoá. Vui lòng liên hệ quản trị viên.',
+      );
     }
 
     // 3. Kiểm tra password
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng.');
     }
@@ -65,16 +70,22 @@ export class AuthService {
       }
 
       // Verify refresh token khớp với DB (#2)
-      const storedHash = await this.usersService.getRefreshTokenHash(payload.sub);
+      const storedHash = await this.usersService.getRefreshTokenHash(
+        payload.sub,
+      );
       if (!storedHash) {
-        throw new UnauthorizedException('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        throw new UnauthorizedException(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+        );
       }
       const isTokenValid = await bcrypt.compare(refreshToken, storedHash);
       if (!isTokenValid) {
         // Token không khớp = có thể bị revoke hoặc bị đánh cắp
         // Clear token để an toàn
         await this.usersService.updateRefreshToken(payload.sub, null);
-        throw new UnauthorizedException('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+        throw new UnauthorizedException(
+          'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.',
+        );
       }
 
       const tokens = await this.generateTokens(user.id, user.email, user.role);
@@ -86,7 +97,9 @@ export class AuthService {
       return tokens;
     } catch (e: any) {
       if (e instanceof UnauthorizedException) throw e;
-      throw new UnauthorizedException('Refresh token đã hết hạn hoặc không hợp lệ.');
+      throw new UnauthorizedException(
+        'Refresh token đã hết hạn hoặc không hợp lệ.',
+      );
     }
   }
 
@@ -110,11 +123,11 @@ export class AuthService {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
-        expiresIn: (this.configService.get('JWT_ACCESS_EXPIRES_IN') || '15m') as any,
+        expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN') || '15m',
       }),
       this.jwtService.signAsync(payload, {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        expiresIn: (this.configService.get('JWT_REFRESH_EXPIRES_IN') || '7d') as any,
+        expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN') || '7d',
       }),
     ]);
 

@@ -50,8 +50,9 @@ export default function AppSidebar() {
           <Image 
             src="/Logo-Moutain-Farmers.png" 
             alt="Mountain Farmers Logo" 
-            width={120} 
-            height={50} 
+            width={0}
+            height={0}
+            sizes="120px"
             style={{ width: '120px', height: 'auto' }}
             className="object-contain group-data-[collapsible=icon]:hidden"
             priority

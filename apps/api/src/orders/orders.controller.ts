@@ -1,8 +1,27 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { PricingEngineService } from './pricing.service';
-import { CreateOrderDto, UpdateOrderStatusDto, UpdateOrderDto } from './dto/order.dto';
+import {
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+  UpdateOrderDto,
+} from './dto/order.dto';
 import { AuditLog } from '../common/decorators/audit-log.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
@@ -44,11 +63,20 @@ export class OrdersController {
 
   @Post('preview-pricing')
   @ApiOperation({ summary: 'Preview giá trước khi lên đơn (Pricing Engine)' })
-  async previewPricing(@Body() body: { customerId: string; items: { productId: string; quantity: number; manualDiscount?: number }[] }) {
-    const result = await this.pricingEngine.calculatePricing(body.customerId, body.items);
+  async previewPricing(
+    @Body()
+    body: {
+      customerId: string;
+      items: { productId: string; quantity: number; manualDiscount?: number }[];
+    },
+  ) {
+    const result = await this.pricingEngine.calculatePricing(
+      body.customerId,
+      body.items,
+    );
     return {
       customerSnapshot: result.customerSnapshot,
-      items: result.orderItemsData.map(item => ({
+      items: result.orderItemsData.map((item) => ({
         productId: item.productId,
         snapshotProductName: item.snapshotProductName,
         snapshotProductSku: item.snapshotProductSku,
@@ -83,14 +111,21 @@ export class OrdersController {
   @Patch(':id')
   @AuditLog('UPDATE', 'Order')
   @ApiOperation({ summary: 'Chỉnh sửa toàn bộ đơn hàng (Thay đổi kho)' })
-  update(@Param('id') id: string, @Request() req: any, @Body() updateOrderDto: UpdateOrderDto) {
+  update(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() updateOrderDto: UpdateOrderDto,
+  ) {
     return this.ordersService.update(id, req.user.id, updateOrderDto);
   }
 
   @Patch(':id/status')
   @AuditLog('STATUS_CHANGE', 'Order')
   @ApiOperation({ summary: 'Trạng thái Đơn hàng (Giao hàng/Thanh toán)' })
-  updateStatus(@Param('id') id: string, @Body() updateData: UpdateOrderStatusDto) {
+  updateStatus(
+    @Param('id') id: string,
+    @Body() updateData: UpdateOrderStatusDto,
+  ) {
     return this.ordersService.updateStatus(id, updateData);
   }
 

@@ -5,9 +5,6 @@ CREATE TYPE "Role" AS ENUM ('ADMIN', 'STAFF');
 CREATE TYPE "OrderDeliveryStatus" AS ENUM ('PENDING', 'PROCESSING', 'SHIPPING', 'COMPLETED', 'RETURNED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "OrderPaymentStatus" AS ENUM ('UNPAID', 'PARTIAL', 'PAID', 'REFUNDED');
-
--- CreateEnum
 CREATE TYPE "PriceSource" AS ENUM ('SPECIAL', 'GROUP', 'RETAIL');
 
 -- CreateEnum
@@ -24,6 +21,7 @@ CREATE TABLE "users" (
     "fullName" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'STAFF',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "refreshTokenHash" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -47,7 +45,8 @@ CREATE TABLE "customer_groups" (
 -- CreateTable
 CREATE TABLE "customers" (
     "id" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
+    "code" TEXT,
+    "phone" TEXT,
     "fullName" TEXT NOT NULL,
     "groupId" TEXT NOT NULL,
     "provinceCode" TEXT,
@@ -77,14 +76,27 @@ CREATE TABLE "customer_special_prices" (
 );
 
 -- CreateTable
+CREATE TABLE "product_categories" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "description" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "product_categories_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "products" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "sku" TEXT NOT NULL,
+    "categoryId" TEXT,
     "unit" TEXT NOT NULL,
     "retailPrice" DECIMAL(15,0) NOT NULL,
     "costPrice" DECIMAL(15,0),
-    "stock" INTEGER,
     "weight" DOUBLE PRECISION,
     "dimensions" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -112,15 +124,13 @@ CREATE TABLE "orders" (
     "orderNumber" TEXT NOT NULL,
     "customerId" TEXT NOT NULL,
     "snapshotCustomerName" TEXT NOT NULL,
-    "snapshotCustomerPhone" TEXT NOT NULL,
+    "snapshotCustomerPhone" TEXT,
     "createdById" TEXT NOT NULL,
     "deliveryStatus" "OrderDeliveryStatus" NOT NULL DEFAULT 'PENDING',
-    "paymentStatus" "OrderPaymentStatus" NOT NULL DEFAULT 'UNPAID',
     "subtotal" DECIMAL(15,0) NOT NULL,
     "discountAmount" DECIMAL(15,0) NOT NULL DEFAULT 0,
     "shippingFee" DECIMAL(15,0) NOT NULL DEFAULT 0,
     "totalAmount" DECIMAL(15,0) NOT NULL,
-    "paidAmount" DECIMAL(15,0) NOT NULL DEFAULT 0,
     "cancelReasonId" TEXT,
     "cancelNotes" TEXT,
     "notes" TEXT,
@@ -141,22 +151,11 @@ CREATE TABLE "order_items" (
     "snapshotUnitPrice" DECIMAL(15,0) NOT NULL,
     "priceSource" "PriceSource" NOT NULL,
     "pricingNote" TEXT,
-    "quantity" INTEGER NOT NULL,
+    "quantity" DOUBLE PRECISION NOT NULL,
     "lineDiscount" DECIMAL(15,0) NOT NULL DEFAULT 0,
     "lineTotal" DECIMAL(15,0) NOT NULL,
 
     CONSTRAINT "order_items_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "payments" (
-    "id" TEXT NOT NULL,
-    "orderId" TEXT NOT NULL,
-    "amount" DECIMAL(15,0) NOT NULL,
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "payments_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -197,6 +196,7 @@ CREATE TABLE "company_settings" (
     "logoUrl" TEXT,
     "bankInfo" TEXT,
     "invoiceFooter" TEXT,
+    "treatBlankAsZero" BOOLEAN NOT NULL DEFAULT false,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "company_settings_pkey" PRIMARY KEY ("id")
@@ -209,10 +209,19 @@ CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 CREATE UNIQUE INDEX "customer_groups_name_key" ON "customer_groups"("name");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "customers_code_key" ON "customers"("code");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "customers_phone_key" ON "customers"("phone");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "customer_special_prices_customerId_productId_key" ON "customer_special_prices"("customerId", "productId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "product_categories_name_key" ON "product_categories"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "product_categories_code_key" ON "product_categories"("code");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "products_sku_key" ON "products"("sku");
@@ -228,9 +237,6 @@ CREATE INDEX "orders_customerId_idx" ON "orders"("customerId");
 
 -- CreateIndex
 CREATE INDEX "orders_deliveryStatus_idx" ON "orders"("deliveryStatus");
-
--- CreateIndex
-CREATE INDEX "orders_paymentStatus_idx" ON "orders"("paymentStatus");
 
 -- CreateIndex
 CREATE INDEX "orders_createdAt_idx" ON "orders"("createdAt");
@@ -257,6 +263,9 @@ ALTER TABLE "customer_special_prices" ADD CONSTRAINT "customer_special_prices_cu
 ALTER TABLE "customer_special_prices" ADD CONSTRAINT "customer_special_prices_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "products" ADD CONSTRAINT "products_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "product_categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "product_group_prices" ADD CONSTRAINT "product_group_prices_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -276,9 +285,6 @@ ALTER TABLE "order_items" ADD CONSTRAINT "order_items_orderId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "payments" ADD CONSTRAINT "payments_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

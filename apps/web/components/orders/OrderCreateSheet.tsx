@@ -29,16 +29,18 @@ import { toast } from 'sonner';
 
 interface OrderCreateSheetProps {
   isOpen: boolean;
+  initialCustomerId?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCreateSheetProps) {
+export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, onSuccess }: OrderCreateSheetProps) {
   const { getToken } = useAuth();
   
   // Master data
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedCustomerObj, setSelectedCustomerObj] = useState<Customer | null>(null);
   
   // Selections
   const [customerId, setCustomerId] = useState<string>('');
@@ -68,37 +70,61 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
   useEffect(() => {
     if (isOpen) {
       const token = getToken()!;
-      crmApi.getCustomers(token, { take: 500 }).then(res => {
-        setCustomers(res.data.filter(c => c.isActive));
+      const startSearch = undefined;
+      crmApi.getCustomers(token, { take: 50, search: initialCustomerId ? undefined : undefined }).then(res => {
+        let activeCustomers = res.data.filter(c => c.isActive);
+        if (initialCustomerId) {
+          crmApi.getCustomer(token, initialCustomerId).then(match => {
+            if (match) {
+              if (!activeCustomers.some(c => c.id === match.id)) {
+                 activeCustomers = [match, ...activeCustomers];
+              }
+              setCustomers(activeCustomers);
+              setCustomerId(match.id);
+              setSelectedCustomerObj(match);
+              setSearchCustomer(match.phone || match.fullName);
+            }
+          }).catch(console.error);
+        } else {
+          setCustomers(activeCustomers);
+        }
       }).catch(console.error);
-      productsApi.getProducts(token, { take: 1000 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(console.error);
+      productsApi.getProducts(token, { take: 50 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(console.error);
       
       // Reset state
-      setCustomerId('');
+      if (!initialCustomerId) {
+        setCustomerId('');
+        setSearchCustomer('');
+      } else {
+        setCustomerId(initialCustomerId);
+      }
       setCart([]);
       setShippingFee(0);
-      setSearchCustomer('');
       setShowCustomerDropdown(false);
       setPricedItems({});
       setPricingSubtotal(null);
     }
-  }, [isOpen, getToken]);
+  }, [isOpen, initialCustomerId, getToken]);
 
-  const filteredProducts = useMemo(() => {
-    if (!searchProduct) return products;
-    const lower = searchProduct.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(lower) || p.sku.toLowerCase().includes(lower));
-  }, [products, searchProduct]);
+  // Async search for products
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      productsApi.getProducts(getToken()!, { search: searchProduct, take: 50 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchProduct, getToken, isOpen]);
 
-  const filteredCustomers = useMemo(() => {
-    if (!searchCustomer) return customers.slice(0, 50); // Show max 50 default
-    const lower = searchCustomer.toLowerCase();
-    return customers.filter(c =>
-      c.fullName.toLowerCase().includes(lower) || c.phone.includes(lower)
-    );
-  }, [customers, searchCustomer]);
+  // Async search for customers
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      crmApi.getCustomers(getToken()!, { search: searchCustomer, take: 50 }).then(res => setCustomers(res.data.filter(c => c.isActive))).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchCustomer, getToken, isOpen]);
 
-  const selectedCustomer = useMemo(() => customers.find(c => c.id === customerId), [customers, customerId]);
+  const selectedCustomer = selectedCustomerObj;
 
   // Fix #10: Debounced pricing preview khi customer hoặc cart thay đổi
   useEffect(() => {
@@ -157,7 +183,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
 
   const updateQuantity = (productId: string, rawQuantity: number | string) => {
     // Sanitize string to allow only digits, comma, period
-    let sanitized = typeof rawQuantity === 'string' ? rawQuantity.replace(/[^0-9.,]/g, '') : rawQuantity;
+    const sanitized = typeof rawQuantity === 'string' ? rawQuantity.replace(/[^0-9.,]/g, '') : rawQuantity;
     
     // Prevent negative numbers if it's somehow passed as number
     if (typeof sanitized === 'number' && sanitized < 0) return;
@@ -176,7 +202,8 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
   const getAbsoluteDiscount = (item: { product: Product, quantity: any, discount: number, discountType?: 'amount' | 'percent' }) => {
     if (item.discountType === 'percent') {
       const qty = parseQty(item.quantity);
-      return Math.round((item.product.retailPrice * qty) * (item.discount || 0) / 100);
+      const actualUnitPrice = pricedItems[item.product.id]?.unitPrice ?? item.product.retailPrice;
+      return Math.round((actualUnitPrice * qty) * (item.discount || 0) / 100);
     }
     return item.discount || 0;
   };
@@ -278,16 +305,17 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                     />
                     {showCustomerDropdown && (
                       <div className="absolute z-50 mt-1 w-full bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
-                        {filteredCustomers.length === 0 ? (
+                        {customers.length === 0 ? (
                           <div className="p-3 text-sm text-muted-foreground text-center">Không tìm thấy</div>
                         ) : (
-                          filteredCustomers.map(c => (
+                          customers.map(c => (
                             <div 
                               key={c.id} 
                               className="p-3 hover:bg-muted cursor-pointer flex flex-col border-b last:border-0"
                               onClick={() => {
                                 setCustomerId(c.id);
-                                setSearchCustomer(c.phone);
+                                setSelectedCustomerObj(c);
+                                setSearchCustomer(c.phone || '');
                                 setShowCustomerDropdown(false);
                               }}
                             >
@@ -311,7 +339,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                       </div>
                       <div className="text-xs text-primary/80 mt-0.5">{selectedCustomer.phone}</div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSearchCustomer('');}} className="h-7 w-7 p-0 shrink-0 text-primary hover:text-primary hover:bg-primary/20 rounded-full focus-visible:ring-0">
+                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSelectedCustomerObj(null); setSearchCustomer('');}} className="h-7 w-7 p-0 shrink-0 text-primary hover:text-primary hover:bg-primary/20 rounded-full focus-visible:ring-0">
                       <X size={16} />
                     </Button>
                   </div>
@@ -331,7 +359,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                 />
                 
                 <div className="flex flex-col gap-2 overflow-y-auto pr-1 flex-1 content-start mt-2">
-                  {filteredProducts.map(p => (
+                  {products.map(p => (
                     <div 
                       key={p.id} 
                       className="border border-muted/60 bg-card p-2.5 px-3 rounded-lg flex items-center justify-between hover:border-primary hover:bg-primary/10 cursor-pointer transition-colors group shadow-sm" 
@@ -426,7 +454,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                                   type="text" 
                                   value={c.discount === 0 ? '' : (c.discountType === 'percent' ? c.discount : new Intl.NumberFormat('vi-VN').format(c.discount))} 
                                   onChange={e => {
-                                    let val = e.target.value.replace(/\D/g, '');
+                                    const val = e.target.value.replace(/\D/g, '');
                                     if (c.discountType === 'percent') {
                                       let n = Number(val);
                                       if (n > 100) n = 100;
@@ -543,6 +571,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
             return [newCustomer, ...prev];
           });
           setCustomerId(newCustomer.id);
+          setSelectedCustomerObj(newCustomer);
           setSearchCustomer(newCustomer.phone || newCustomer.fullName);
           setShowCustomerDropdown(false);
         }

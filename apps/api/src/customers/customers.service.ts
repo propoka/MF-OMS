@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { Prisma } from '@prisma/client';
@@ -7,7 +11,12 @@ import { Prisma } from '@prisma/client';
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: { skip?: number; take?: number; search?: string; groupId?: string }) {
+  async findAll(query: {
+    skip?: number;
+    take?: number;
+    search?: string;
+    groupId?: string;
+  }) {
     const { skip = 0, take = 50, search, groupId } = query;
     const where: Prisma.CustomerWhereInput = {};
 
@@ -30,7 +39,9 @@ export class CustomersService {
         skip: Number(skip),
         take: Number(take),
         include: {
-          group: { select: { name: true, discountPercent: true, priceType: true } },
+          group: {
+            select: { name: true, discountPercent: true, priceType: true },
+          },
           orders: {
             where: { deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] } },
             select: { totalAmount: true },
@@ -63,13 +74,13 @@ export class CustomersService {
         group: true,
         orders: {
           where: { deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] } },
-          select: { 
+          select: {
             id: true,
             orderNumber: true,
             deliveryStatus: true,
             subtotal: true,
-            totalAmount: true, 
-            createdAt: true
+            totalAmount: true,
+            createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -89,15 +100,32 @@ export class CustomersService {
 
   async create(data: CreateCustomerDto) {
     try {
-      const phoneToSave = data.phone && data.phone.trim() !== '' ? data.phone.trim() : null;
+      const phoneToSave =
+        data.phone && data.phone.trim() !== '' ? data.phone.trim() : null;
       let targetCode = data.code;
-      
+
+      let finalGroupId = data.groupId;
+      if (!finalGroupId || finalGroupId.trim() === '') {
+        const defaultGroup = await this.prisma.customerGroup.findFirst({
+          where: { isDefault: true },
+        });
+        if (defaultGroup) {
+          finalGroupId = defaultGroup.id;
+        } else {
+          throw new BadRequestException(
+            'Không tìm thấy nhóm khách hàng mặc định, vui lòng kiểm tra cấu hình.',
+          );
+        }
+      }
+
       if (!targetCode) {
         let isUnique = false;
         while (!isUnique) {
           const rnd = Math.floor(100000 + Math.random() * 900000).toString();
           targetCode = `KH${rnd}`;
-          const existing = await this.prisma.customer.findUnique({ where: { code: targetCode } });
+          const existing = await this.prisma.customer.findUnique({
+            where: { code: targetCode },
+          });
           if (!existing) isUnique = true;
         }
       }
@@ -107,7 +135,8 @@ export class CustomersService {
           ...data,
           phone: phoneToSave,
           code: targetCode!,
-        }
+          groupId: finalGroupId,
+        },
       });
     } catch (e: any) {
       if (e.code === 'P2002') {
@@ -123,26 +152,38 @@ export class CustomersService {
     }
 
     try {
+      // Get Default Group ID
+      const defaultGroup = await this.prisma.customerGroup.findFirst({
+        where: { isDefault: true },
+        select: { id: true },
+      });
+      const defaultGroupId = defaultGroup?.id;
+
+      if (!defaultGroupId) {
+        throw new BadRequestException('Hệ thống chưa có nhóm khách mặc định.');
+      }
+
       // Prisma createMany skipDuplicates is useful here
       const result = await this.prisma.customer.createMany({
-        data: data.map(d => ({
+        data: data.map((d) => ({
           phone: d.phone,
           fullName: d.fullName,
-          groupId: d.groupId,
+          groupId:
+            d.groupId && d.groupId.trim() !== '' ? d.groupId : defaultGroupId,
           provinceCode: d.provinceCode,
           provinceName: d.provinceName,
           wardCode: d.wardCode,
           wardName: d.wardName,
           addressDetail: d.addressDetail,
           notes: d.notes,
-          isActive: d.isActive !== undefined ? d.isActive : true
+          isActive: d.isActive !== undefined ? d.isActive : true,
         })),
         skipDuplicates: true, // Ignore duplicates instead of crashing
       });
 
       return {
         message: `Đã import thành công ${result.count} khách hàng`,
-        importedCount: result.count
+        importedCount: result.count,
       };
     } catch (e: any) {
       throw new BadRequestException('Lỗi import dữ liệu: ' + e.message);
@@ -154,18 +195,25 @@ export class CustomersService {
     if (!existing) throw new NotFoundException('Không tìm thấy khách hàng');
 
     try {
-      const phoneToSave = data.phone && data.phone.trim() !== '' ? data.phone.trim() : (data.phone === '' ? null : undefined);
-      
+      const phoneToSave =
+        data.phone && data.phone.trim() !== ''
+          ? data.phone.trim()
+          : data.phone === ''
+            ? null
+            : undefined;
+
       return await this.prisma.customer.update({
         where: { id },
         data: {
           ...data,
-          ...(phoneToSave !== undefined && { phone: phoneToSave })
+          ...(phoneToSave !== undefined && { phone: phoneToSave }),
         },
       });
     } catch (e: any) {
       if (e.code === 'P2002') {
-        throw new BadRequestException('Số điện thoại này đã tồn tại ở hồ sơ khác.');
+        throw new BadRequestException(
+          'Số điện thoại này đã tồn tại ở hồ sơ khác.',
+        );
       }
       throw e;
     }
@@ -178,7 +226,7 @@ export class CustomersService {
     });
 
     if (!existing) throw new NotFoundException('Không tìm thấy khách hàng');
-    
+
     // Nếu đã có đơn hàng thì không xoá cứng để bảo toàn dữ liệu
     if (existing._count.orders > 0) {
       throw new BadRequestException(

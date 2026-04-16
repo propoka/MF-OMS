@@ -105,9 +105,9 @@ export default function OrdersPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'PENDING': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Đang xử lý</Badge>;
-      case 'PROCESSING': return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Đang giao</Badge>;
-      case 'SHIPPING': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Đã giao</Badge>;
+      case 'PENDING': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Chờ xác nhận</Badge>;
+      case 'PROCESSING': return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Đang xử lý</Badge>;
+      case 'SHIPPING': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Đang giao</Badge>;
       case 'COMPLETED': return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Hoàn thành</Badge>;
       case 'CANCELLED': return <Badge variant="destructive">Huỷ</Badge>;
       case 'RETURNED': return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Hoàn trả</Badge>;
@@ -154,9 +154,9 @@ export default function OrdersPage() {
                     <Filter size={15} className="text-muted-foreground shrink-0" /> 
                     <SelectValue placeholder="Lọc trạng thái">
                       {statusFilter === 'ALL' ? 'Tất cả trạng thái' : 
-                       statusFilter === 'PENDING' ? 'Đang xử lý' :
-                       statusFilter === 'PROCESSING' ? 'Đang giao' :
-                       statusFilter === 'SHIPPING' ? 'Đã giao' :
+                       statusFilter === 'PENDING' ? 'Chờ xác nhận' :
+                       statusFilter === 'PROCESSING' ? 'Đang xử lý' :
+                       statusFilter === 'SHIPPING' ? 'Đang giao' :
                        statusFilter === 'COMPLETED' ? 'Hoàn thành' :
                        statusFilter === 'RETURNED' ? 'Hoàn trả' :
                        statusFilter === 'CANCELLED' ? 'Huỷ' : 'Lọc trạng thái'}
@@ -165,9 +165,9 @@ export default function OrdersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="PENDING">Đang xử lý</SelectItem>
-                  <SelectItem value="PROCESSING">Đang giao</SelectItem>
-                  <SelectItem value="SHIPPING">Đã giao</SelectItem>
+                  <SelectItem value="PENDING">Chờ xác nhận</SelectItem>
+                  <SelectItem value="PROCESSING">Đang xử lý</SelectItem>
+                  <SelectItem value="SHIPPING">Đang giao</SelectItem>
                   <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
                   <SelectItem value="RETURNED">Hoàn trả</SelectItem>
                   <SelectItem value="CANCELLED">Huỷ</SelectItem>

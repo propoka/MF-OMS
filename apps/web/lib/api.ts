@@ -38,8 +38,11 @@ async function apiFetch<T>(
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    if (res.status === 401 && typeof window !== 'undefined') {
+    if (res.status === 401 && typeof window !== 'undefined' && token) {
       window.dispatchEvent(new CustomEvent('mf_unauthorized'));
+      // Prevent caller from throwing and triggering Next.js Error Overlay.
+      // Hang the promise indefinitely while the app redirects to /login.
+      return new Promise<T>(() => {});
     }
 
     const raw = data?.message;
@@ -116,6 +119,9 @@ export const crmApi = {
     return apiFetch<{ total: number; data: Customer[] }>(`/customers${qs ? `?${qs}` : ''}`, { token });
   },
 
+  getCustomer: (token: string, id: string) =>
+    apiFetch<Customer>(`/customers/${id}`, { token }),
+
   updateCustomer: (token: string, id: string, data: Partial<Customer>) =>
     apiFetch<Customer>(`/customers/${id}`, { method: 'PATCH', token, body: data }),
 
@@ -130,12 +136,10 @@ export const crmApi = {
 
 export const addressApi = {
   getProvinces: () =>
-    fetch('https://provinces.open-api.vn/api/p/').then(r => r.json()),
+    apiFetch<{ code: string; name: string }[]>('/address/provinces'),
   
   getDistricts: (code: string) =>
-    fetch(`https://provinces.open-api.vn/api/p/${code}?depth=2`)
-      .then(r => r.json())
-      .then(r => r.districts || []),
+    apiFetch<{ code: string; name: string }[]>(`/address/provinces/${code}/districts`),
 };
 
 // ─── Products API ────────────────────────────────────────────────────────────
@@ -305,6 +309,8 @@ export const advancedApi = {
     apiFetch('/settings/advanced/delete-all/customer-groups', { method: 'DELETE', token }),
   deleteAllProductCategories: (token: string) =>
     apiFetch('/settings/advanced/delete-all/product-categories', { method: 'DELETE', token }),
+  seedLocalData: (token: string) =>
+    apiFetch('/settings/advanced/seed-local', { method: 'POST', token }),
 };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -323,6 +329,8 @@ export interface CustomerGroup {
   priceType: 'PERCENTAGE' | 'FIXED';
   discountPercent?: number;
   isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   _count?: { customers: number };
 }
 
@@ -431,6 +439,7 @@ export interface CompanySettings {
   logoUrl?: string;
   bankInfo?: string;
   invoiceFooter?: string;
+  treatBlankAsZero?: boolean;
 }
 
 export interface CancelReason {

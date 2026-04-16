@@ -1,24 +1,32 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingEngineService } from './pricing.service';
-import { CreateOrderDto, UpdateOrderStatusDto, UpdateOrderDto } from './dto/order.dto';
+import {
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+  UpdateOrderDto,
+} from './dto/order.dto';
 import { Prisma } from '@prisma/client';
 
 // ─── Status Transition Rules (State Machine) ─────────────────────
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  PENDING:    ['PROCESSING', 'CANCELLED'],
+  PENDING: ['PROCESSING', 'CANCELLED'],
   PROCESSING: ['SHIPPING', 'CANCELLED'],
-  SHIPPING:   ['COMPLETED', 'RETURNED'],
-  COMPLETED:  ['RETURNED'],
-  RETURNED:   [],
-  CANCELLED:  [],
+  SHIPPING: ['COMPLETED', 'RETURNED'],
+  COMPLETED: ['RETURNED'],
+  RETURNED: [],
+  CANCELLED: [],
 };
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pricingEngine: PricingEngineService
+    private readonly pricingEngine: PricingEngineService,
   ) {}
 
   async create(userId: string, data: CreateOrderDto) {
@@ -27,12 +35,21 @@ export class OrdersService {
     }
 
     // 1. Dùng PricingEngine để tính giá và lấy snapshot
-    const pricingResult = await this.pricingEngine.calculatePricing(data.customerId, data.items);
+    const pricingResult = await this.pricingEngine.calculatePricing(
+      data.customerId,
+      data.items,
+    );
 
     const subtotal = pricingResult.subtotal;
     const discountAmount = new Prisma.Decimal(data.discountAmount || 0);
     const shippingFee = new Prisma.Decimal(data.shippingFee || 0);
     const totalAmount = subtotal.minus(discountAmount).plus(shippingFee);
+
+    if (totalAmount.lessThan(0)) {
+      throw new BadRequestException(
+        'Tổng tiền đơn hàng không thể là số âm. Vui lòng kiểm tra lại Giảm giá.',
+      );
+    }
 
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
@@ -42,7 +59,7 @@ export class OrdersService {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const count = await this.prisma.order.count({
-          where: { orderNumber: { startsWith: `ORD-${dateStr}` } }
+          where: { orderNumber: { startsWith: `ORD-${dateStr}` } },
         });
         const seq = (count + 1 + attempt).toString().padStart(4, '0');
         const orderNumber = `ORD-${dateStr}-${seq}`;
@@ -52,8 +69,10 @@ export class OrdersService {
             data: {
               orderNumber,
               customerId: data.customerId,
-              snapshotCustomerName: pricingResult.customerSnapshot.snapshotCustomerName,
-              snapshotCustomerPhone: pricingResult.customerSnapshot.snapshotCustomerPhone,
+              snapshotCustomerName:
+                pricingResult.customerSnapshot.snapshotCustomerName,
+              snapshotCustomerPhone:
+                pricingResult.customerSnapshot.snapshotCustomerPhone,
               createdById: userId,
               deliveryStatus: 'PENDING',
               subtotal,
@@ -62,14 +81,15 @@ export class OrdersService {
               totalAmount,
               notes: data.notes,
               items: {
-                create: pricingResult.orderItemsData
-              }
+                create: pricingResult.orderItemsData,
+              },
             },
-            include: { items: true, customer: true }
+            include: { items: true, customer: true },
           });
         });
       } catch (e: any) {
-        if (e.code === 'P2002') { // Trùng orderNumber
+        if (e.code === 'P2002') {
+          // Trùng orderNumber
           lastError = e;
           continue;
         }
@@ -83,8 +103,10 @@ export class OrdersService {
       data: {
         orderNumber: `ORD-${dateStr}-${fallbackSeq}`,
         customerId: data.customerId,
-        snapshotCustomerName: pricingResult.customerSnapshot.snapshotCustomerName,
-        snapshotCustomerPhone: pricingResult.customerSnapshot.snapshotCustomerPhone,
+        snapshotCustomerName:
+          pricingResult.customerSnapshot.snapshotCustomerName,
+        snapshotCustomerPhone:
+          pricingResult.customerSnapshot.snapshotCustomerPhone,
         createdById: userId,
         deliveryStatus: 'PENDING',
         subtotal,
@@ -93,10 +115,10 @@ export class OrdersService {
         totalAmount,
         notes: data.notes,
         items: {
-          create: pricingResult.orderItemsData
-        }
+          create: pricingResult.orderItemsData,
+        },
       },
-      include: { items: true, customer: true }
+      include: { items: true, customer: true },
     });
   }
 
@@ -107,7 +129,7 @@ export class OrdersService {
 
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { items: true }
+      include: { items: true },
     });
 
     if (!order) {
@@ -115,21 +137,32 @@ export class OrdersService {
     }
 
     if (order.deliveryStatus !== 'PENDING') {
-      throw new BadRequestException('Chỉ cho phép chỉnh sửa các đơn hàng đang ở trạng thái xử lý!');
+      throw new BadRequestException(
+        'Chỉ cho phép chỉnh sửa các đơn hàng đang ở trạng thái chờ xử lý (PENDING)!',
+      );
     }
 
     // 1. Dùng PricingEngine để tính giá và lấy snapshot
-    const pricingResult = await this.pricingEngine.calculatePricing(data.customerId, data.items);
+    const pricingResult = await this.pricingEngine.calculatePricing(
+      data.customerId,
+      data.items,
+    );
 
     const subtotal = pricingResult.subtotal;
     const discountAmount = new Prisma.Decimal(data.discountAmount || 0);
     const shippingFee = new Prisma.Decimal(data.shippingFee || 0);
     const totalAmount = subtotal.minus(discountAmount).plus(shippingFee);
 
+    if (totalAmount.lessThan(0)) {
+      throw new BadRequestException(
+        'Tổng tiền đơn hàng không thể là số âm. Vui lòng kiểm tra lại Giảm giá.',
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       // 2. Xoá các hạng mục cũ
       await tx.orderItem.deleteMany({
-        where: { orderId: id }
+        where: { orderId: id },
       });
 
       // 3. Cập nhật Order & OrderItems Snapshot mới
@@ -137,25 +170,32 @@ export class OrdersService {
         where: { id },
         data: {
           customerId: data.customerId,
-          snapshotCustomerName: pricingResult.customerSnapshot.snapshotCustomerName,
-          snapshotCustomerPhone: pricingResult.customerSnapshot.snapshotCustomerPhone,
+          snapshotCustomerName:
+            pricingResult.customerSnapshot.snapshotCustomerName,
+          snapshotCustomerPhone:
+            pricingResult.customerSnapshot.snapshotCustomerPhone,
           subtotal,
           discountAmount,
           shippingFee,
           totalAmount,
           notes: data.notes,
           items: {
-            create: pricingResult.orderItemsData
-          }
+            create: pricingResult.orderItemsData,
+          },
         },
-        include: { items: true, customer: true }
+        include: { items: true, customer: true },
       });
 
       return updatedOrder;
     });
   }
 
-  async findAll(query: { skip?: number; take?: number; search?: string; status?: string }) {
+  async findAll(query: {
+    skip?: number;
+    take?: number;
+    search?: string;
+    status?: string;
+  }) {
     const { skip = 0, take = 50, search, status } = query;
     const where: Prisma.OrderWhereInput = {};
 
@@ -166,7 +206,7 @@ export class OrdersService {
         { snapshotCustomerPhone: { contains: search } },
       ];
     }
-    
+
     if (status) {
       where.deliveryStatus = status as any;
     }
@@ -178,7 +218,7 @@ export class OrdersService {
         skip: Number(skip),
         take: Number(take),
         include: {
-          createdBy: { select: { fullName: true } }
+          createdBy: { select: { fullName: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -195,14 +235,14 @@ export class OrdersService {
         createdBy: true,
         customer: { include: { group: true } },
         cancelReason: true,
-      }
+      },
     });
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
 
     const auditLogs = await this.prisma.auditLog.findMany({
       where: { entityType: 'Order', entityId: id },
       include: { user: { select: { fullName: true } } },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return { ...order, auditLogs };
@@ -211,18 +251,21 @@ export class OrdersService {
   async updateStatus(id: string, data: UpdateOrderStatusDto) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { items: true }
+      include: { items: true },
     });
-    
+
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
 
     // Validate status transition (State Machine)
     if (data.deliveryStatus) {
       const allowedTransitions = VALID_TRANSITIONS[order.deliveryStatus];
-      if (!allowedTransitions || !allowedTransitions.includes(data.deliveryStatus)) {
+      if (
+        !allowedTransitions ||
+        !allowedTransitions.includes(data.deliveryStatus)
+      ) {
         throw new BadRequestException(
           `Không thể chuyển trạng thái từ "${order.deliveryStatus}" sang "${data.deliveryStatus}". ` +
-          `Trạng thái hợp lệ: ${allowedTransitions?.join(', ') || 'Không có'}`
+            `Trạng thái hợp lệ: ${allowedTransitions?.join(', ') || 'Không có'}`,
         );
       }
     }
@@ -235,13 +278,16 @@ export class OrdersService {
           deliveryStatus: data.deliveryStatus,
           cancelReasonId: data.cancelReasonId,
           cancelNotes: data.cancelNotes,
-        }
+        },
       });
     });
   }
 
   async remove(id: string) {
-    const order = await this.prisma.order.findUnique({ where: { id }, include: { items: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
     if (!order) throw new NotFoundException('Không tìm thấy đơn');
 
     return this.prisma.$transaction(async (tx) => {
@@ -252,9 +298,11 @@ export class OrdersService {
 
   async import(userId: string, orders: any[]) {
     let successCount = 0;
-    
+
     // Find default group
-    let defaultGroup = await this.prisma.customerGroup.findFirst({ where: { isDefault: true } });
+    let defaultGroup = await this.prisma.customerGroup.findFirst({
+      where: { isDefault: true },
+    });
     if (!defaultGroup) {
       defaultGroup = await this.prisma.customerGroup.findFirst();
     }
@@ -264,34 +312,40 @@ export class OrdersService {
         // Find or create customer
         let customerId = '';
         if (o.customerPhone) {
-          const existingCust = await this.prisma.customer.findUnique({ where: { phone: String(o.customerPhone).trim() } });
+          const existingCust = await this.prisma.customer.findUnique({
+            where: { phone: String(o.customerPhone).trim() },
+          });
           if (existingCust) {
             customerId = existingCust.id;
           }
         }
-        
+
         if (!customerId) {
           const newCust = await this.prisma.customer.create({
             data: {
               fullName: o.customerName || 'Khách vãng lai',
               phone: o.customerPhone ? String(o.customerPhone).trim() : null,
               groupId: defaultGroup?.id as string,
-            }
+            },
           });
           customerId = newCust.id;
         }
 
         // Parse items
         const skus = o.productSkus.split(',').map((s: string) => s.trim());
-        const qtys = o.quantities.split(',').map((q: string) => parseFloat(q.trim()));
-        
-        const items = [];
+        const qtys = o.quantities
+          .split(',')
+          .map((q: string) => parseFloat(q.trim()));
+
+        const items: { productId: string; quantity: number }[] = [];
         for (let i = 0; i < skus.length; i++) {
           const sku = skus[i];
           const qty = qtys[i];
           if (!sku || isNaN(qty)) continue;
-          
-          const product = await this.prisma.product.findUnique({ where: { sku } });
+
+          const product = await this.prisma.product.findUnique({
+            where: { sku },
+          });
           if (product) {
             items.push({ productId: product.id, quantity: qty });
           }
@@ -311,8 +365,7 @@ export class OrdersService {
         // Skip invalid order row
       }
     }
-    
+
     return { successCount, totalTried: orders.length };
   }
 }
-

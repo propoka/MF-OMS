@@ -27,8 +27,8 @@ export default function DashboardPage() {
         if (!token) return;
         const res = await dashboardApi.getKpis(token);
         setData(res);
-      } catch (err) {
-        console.error('Failed to load KPIs', err);
+      } catch {
+        // KPI load failed silently
       } finally {
         setIsLoading(false);
       }
@@ -134,48 +134,46 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle>Doanh thu 7 ngày gần nhất</CardTitle>
             </CardHeader>
-            <CardContent className="pl-2">
-              <div className="h-[250px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%" minWidth={1}>
-                  <AreaChart data={data.revenueChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="oklch(0.40 0.06 45)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="oklch(0.40 0.06 45)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                    />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      width={40}
-                      tickFormatter={(value) => `${(value / 1000000).toFixed(0)}Tr`}
-                    />
-                    <Tooltip
-                      formatter={(value) => [formatMoney(Number(value ?? 0)), 'Doanh thu']}
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke="oklch(0.40 0.06 45)" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorRevenue)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+            <CardContent className="pl-2 pt-4">
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={data.revenueChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="oklch(0.40 0.06 45)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="oklch(0.40 0.06 45)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                    tickFormatter={(value) => `${(value / 1000000).toFixed(0)}Tr`}
+                  />
+                  <Tooltip
+                    formatter={(value) => [formatMoney(Number(value ?? 0)), 'Doanh thu']}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="oklch(0.40 0.06 45)"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
@@ -184,47 +182,45 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle>Lưu lượng đơn hàng 7 ngày</CardTitle>
             </CardHeader>
-            <CardContent className="pl-2">
-              <div className="h-[250px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%" minWidth={1}>
-                  <AreaChart data={data.revenueChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="oklch(0.50 0.06 50)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="oklch(0.50 0.06 50)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                    />
-                    <YAxis 
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      width={40}
-                    />
-                    <Tooltip
-                      formatter={(value) => [`${value} đơn`, 'Số lượng']}
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="orders" 
-                      stroke="oklch(0.50 0.06 50)" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorOrders)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+            <CardContent className="pl-2 pt-4">
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={data.revenueChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="oklch(0.50 0.06 50)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="oklch(0.50 0.06 50)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`${value} đơn`, 'Số lượng']}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="orders"
+                    stroke="oklch(0.50 0.06 50)"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorOrders)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>

@@ -1,10 +1,24 @@
-import { Controller, Get, Post, Body, Param, Delete, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { AuditLog } from '../common/decorators/audit-log.decorator';
-import { IsString, IsNotEmpty, IsNumber, IsOptional, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  Min,
+} from 'class-validator';
 
 export class SpecialPriceDto {
   @IsString() @IsNotEmpty() productId: string;
@@ -24,8 +38,16 @@ export class CustomerSpecialPricesController {
     return this.prisma.customerSpecialPrice.findMany({
       where: { customerId },
       include: {
-        product: { select: { id: true, name: true, sku: true, unit: true, retailPrice: true } }
-      }
+        product: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            unit: true,
+            retailPrice: true,
+          },
+        },
+      },
     });
   }
 
@@ -35,29 +57,31 @@ export class CustomerSpecialPricesController {
   @ApiOperation({ summary: 'Tạo hoặc cập nhật giá đặc biệt (Upsert)' })
   async upsert(
     @Param('customerId') customerId: string,
-    @Body() dto: SpecialPriceDto
+    @Body() dto: SpecialPriceDto,
   ) {
     // Check product exists
-    const product = await this.prisma.product.findUnique({ where: { id: dto.productId } });
+    const product = await this.prisma.product.findUnique({
+      where: { id: dto.productId },
+    });
     if (!product) throw new NotFoundException('Không tìm thấy sản phẩm');
 
     return this.prisma.customerSpecialPrice.upsert({
       where: {
         customerId_productId: {
           customerId,
-          productId: dto.productId
-        }
+          productId: dto.productId,
+        },
       },
       update: {
         price: dto.price,
-        notes: dto.notes
+        notes: dto.notes,
       },
       create: {
         customerId,
         productId: dto.productId,
         price: dto.price,
-        notes: dto.notes
-      }
+        notes: dto.notes,
+      },
     });
   }
 
@@ -65,11 +89,14 @@ export class CustomerSpecialPricesController {
   @Roles(Role.ADMIN)
   @AuditLog('DELETE', 'CustomerSpecialPrice')
   @ApiOperation({ summary: 'Xoá giá đặc biệt của 1 sản phẩm cho KH này' })
-  remove(@Param('customerId') customerId: string, @Param('productId') productId: string) {
+  remove(
+    @Param('customerId') customerId: string,
+    @Param('productId') productId: string,
+  ) {
     return this.prisma.customerSpecialPrice.delete({
       where: {
-        customerId_productId: { customerId, productId }
-      }
+        customerId_productId: { customerId, productId },
+      },
     });
   }
 }

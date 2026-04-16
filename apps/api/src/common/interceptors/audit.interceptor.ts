@@ -19,7 +19,10 @@ export class AuditInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
     const method = request.method;
 
@@ -49,7 +52,10 @@ export class AuditInterceptor implements NestInterceptor {
 
     // Fix #16: Capture oldData TRƯỚC khi handler xử lý (cho UPDATE/DELETE/STATUS_CHANGE)
     let oldData: any = null;
-    if (['UPDATE', 'DELETE', 'STATUS_CHANGE'].includes(action) && request.params?.id) {
+    if (
+      ['UPDATE', 'DELETE', 'STATUS_CHANGE'].includes(action) &&
+      request.params?.id
+    ) {
       try {
         oldData = await this.fetchEntityData(entityType, request.params.id);
       } catch {
@@ -58,33 +64,32 @@ export class AuditInterceptor implements NestInterceptor {
     }
 
     return next.handle().pipe(
-      tap(async (responseData) => {
-        try {
-          const entityId =
-            responseData?.id ||
-            request.params?.id ||
-            'unknown';
+      tap((responseData) => {
+        // Fire and forget (bọc promise để xoá cấu trúc lỗi misused-promises của RxJS)
+        void (async () => {
+          try {
+            const entityId =
+              responseData?.id || request.params?.id || 'unknown';
 
-          await this.prisma.auditLog.create({
-            data: {
-              userId: user?.id || null,
-              userEmail: user?.email || null,
-              action,
-              entityType,
-              entityId: String(entityId),
-              oldData: oldData
-                ? JSON.parse(JSON.stringify(oldData))
-                : null,
-              newData: responseData
-                ? JSON.parse(JSON.stringify(responseData))
-                : null,
-              ipAddress: String(ipAddress || ''),
-            },
-          });
-        } catch {
-          // Audit log failure không được làm crash request
-          console.error('[AuditInterceptor] Failed to write audit log');
-        }
+            await this.prisma.auditLog.create({
+              data: {
+                userId: user?.id || null,
+                userEmail: user?.email || null,
+                action,
+                entityType,
+                entityId: String(entityId),
+                oldData: oldData ? JSON.parse(JSON.stringify(oldData)) : null,
+                newData: responseData
+                  ? JSON.parse(JSON.stringify(responseData))
+                  : null,
+                ipAddress: String(ipAddress || ''),
+              },
+            });
+          } catch {
+            // Audit log failure không được làm crash request
+            console.error('[AuditInterceptor] Failed to write audit log');
+          }
+        })();
       }),
     );
   }
@@ -92,7 +97,10 @@ export class AuditInterceptor implements NestInterceptor {
   /**
    * Fetch entity hiện tại từ DB trước khi bị thay đổi (cho oldData)
    */
-  private async fetchEntityData(entityType: string, entityId: string): Promise<any> {
+  private async fetchEntityData(
+    entityType: string,
+    entityId: string,
+  ): Promise<any> {
     switch (entityType) {
       case 'Order':
         return this.prisma.order.findUnique({
@@ -106,7 +114,13 @@ export class AuditInterceptor implements NestInterceptor {
       case 'User':
         return this.prisma.user.findUnique({
           where: { id: entityId },
-          select: { id: true, email: true, fullName: true, role: true, isActive: true },
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            role: true,
+            isActive: true,
+          },
         });
       case 'CompanySettings':
         return this.prisma.companySettings.findFirst();

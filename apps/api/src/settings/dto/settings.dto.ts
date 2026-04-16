@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber, IsEmail } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsEmail,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ─── Company Settings DTO ─────────────────────────────────────────
@@ -44,6 +51,11 @@ export class UpdateCompanySettingsDto {
   @IsOptional()
   @IsString()
   invoiceFooter?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  treatBlankAsZero?: boolean;
 }
 
 // ─── Cancel Reason DTOs ───────────────────────────────────────────

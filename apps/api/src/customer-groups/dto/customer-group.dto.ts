@@ -1,4 +1,13 @@
-import { IsString, IsNotEmpty, IsEnum, IsNumber, Min, Max, IsBoolean, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsNumber,
+  Min,
+  Max,
+  IsBoolean,
+  IsOptional,
+} from 'class-validator';
 import { GroupPriceType } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -13,7 +22,10 @@ export class CreateCustomerGroupDto {
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ enum: GroupPriceType, default: GroupPriceType.PERCENTAGE })
+  @ApiPropertyOptional({
+    enum: GroupPriceType,
+    default: GroupPriceType.PERCENTAGE,
+  })
   @IsEnum(GroupPriceType)
   @IsOptional()
   priceType?: GroupPriceType;

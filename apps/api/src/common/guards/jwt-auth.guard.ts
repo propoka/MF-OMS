@@ -27,11 +27,14 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any) {
+  handleRequest(err: any, user: any, info: any) {
     if (err || !user) {
+      console.log('--- JWT ERROR ---', err, info, 'User:', user);
       throw (
         err ||
-        new UnauthorizedException('Bạn cần đăng nhập để thực hiện thao tác này.')
+        new UnauthorizedException(
+          'Bạn cần đăng nhập để thực hiện thao tác này.',
+        )
       );
     }
     return user;

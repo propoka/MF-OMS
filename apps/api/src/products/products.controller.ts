@@ -1,7 +1,27 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  ParseArrayPipe,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiBody,
+} from '@nestjs/swagger';
 import { ProductsService } from './products.service';
-import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
+import {
+  CreateProductDto,
+  UpdateProductDto,
+  ImportProductDto,
+} from './dto/product.dto';
 import { AuditLog } from '../common/decorators/audit-log.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '@prisma/client';
@@ -52,8 +72,14 @@ export class ProductsController {
   @Post('import')
   @Roles(Role.ADMIN)
   @AuditLog('CREATE', 'Product')
-  @ApiOperation({ summary: 'Import danh sách sản phẩm từ Excel (JSON payload)' })
-  import(@Body() products: any[]) {
+  @ApiOperation({
+    summary: 'Import danh sách sản phẩm từ Excel (JSON payload)',
+  })
+  @ApiBody({ type: [ImportProductDto] })
+  import(
+    @Body(new ParseArrayPipe({ items: ImportProductDto }))
+    products: ImportProductDto[],
+  ) {
     return this.productsService.import(products);
   }
 

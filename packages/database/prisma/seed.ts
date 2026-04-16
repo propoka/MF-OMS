@@ -48,6 +48,32 @@ async function main() {
   console.log(`✅ Customer groups: ${groupNames.length} groups created`);
 
   // ============================================================
+  // 3. Product Categories (Danh mục Sản phẩm)
+  // ============================================================
+  const categories = [
+    { name: 'Nông Sản Khô', code: 'NSK', description: 'Nông sản sấy khô các loại' },
+    { name: 'Hạt Ngũ Cốc', code: 'HNC', description: 'Các loại hạt dinh dưỡng' },
+    { name: 'Nước Mát', code: 'NM', description: 'Đồ uống thanh lọc' },
+    { name: 'Rau Củ Tươi', code: 'RCT', description: 'Rau củ quả tươi sạch' }
+  ];
+  
+  const createdCategories: any[] = [];
+  for (const cat of categories) {
+    const created = await prisma.productCategory.upsert({
+      where: { code: cat.code },
+      update: {},
+      create: {
+        name: cat.name,
+        code: cat.code,
+        description: cat.description,
+        isActive: true
+      }
+    });
+    createdCategories.push(created);
+  }
+  console.log(`✅ Categories: ${createdCategories.length} product categories created`);
+
+  // ============================================================
   // 3. Products (20 Products)
   // ============================================================
   const productNames = [
@@ -70,9 +96,9 @@ async function main() {
       create: {
         name: pName,
         sku: `MF-${1000 + i}`,
+        categoryId: createdCategories[i % createdCategories.length].id,
         retailPrice: basePrice,
         costPrice: basePrice * 0.6,
-        stock: Math.floor(Math.random() * 500) + 50,
         unit: 'Gói',
         isActive: true,
       },
@@ -104,7 +130,7 @@ async function main() {
   ];
 
   for (let i = 0; i < customerNames.length; i++) {
-    const phone = `090${Math.floor(Math.random() * 9000000) + 1000000}`; // 10 digits
+    const phone = '090' + (1000000 + i).toString(); // 10 digits, deterministic
     const group = groupsToUse[i % groupsToUse.length]; // evenly distribute
     
     await prisma.customer.upsert({

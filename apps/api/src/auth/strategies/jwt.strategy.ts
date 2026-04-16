@@ -5,7 +5,7 @@ import { UsersService } from '../../users/users.service';
 import { ConfigService } from '@nestjs/config';
 
 export interface JwtPayload {
-  sub: string;    // user id
+  sub: string; // user id
   email: string;
   role: string;
   iat?: number;
@@ -29,7 +29,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const user = await this.usersService.findById(payload.sub);
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Tài khoản không tồn tại hoặc đã bị khoá.');
+      throw new UnauthorizedException(
+        'Tài khoản không tồn tại hoặc đã bị khoá.',
+      );
     }
 
     return {

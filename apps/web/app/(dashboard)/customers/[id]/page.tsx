@@ -42,11 +42,8 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       const token = getToken();
       if (!token) return;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/customers/${resolvedParams.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Failed to load customer');
-      setCustomer(await res.json());
+      const res = await crmApi.getCustomer(token, resolvedParams.id);
+      setCustomer(res);
     } catch (err) {
       console.error(err);
     } finally {
@@ -123,7 +120,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <Trash2 className="h-4 w-4 mr-2" /> Xoá
             </Button>
           )}
-          <Button className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5">
+          <Button onClick={() => window.dispatchEvent(new CustomEvent('open-global-order-fab', { detail: { customerId: customer.id }}))} className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5">
             <ShoppingCart className="mr-2 h-5 w-5" /> Lên đơn hàng
           </Button>
         </div>
@@ -234,9 +231,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                         <TableCell className="px-6 text-muted-foreground text-sm">{formatDate(order.createdAt)}</TableCell>
                         <TableCell className="px-6 font-medium text-foreground">{formatMoney(order.totalAmount)}</TableCell>
                         <TableCell className="px-6">
-                            {order.deliveryStatus === 'DELIVERED' ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Đã giao</Badge> : 
+                            {order.deliveryStatus === 'COMPLETED' ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Hoàn thành</Badge> :
                              order.deliveryStatus === 'SHIPPING' ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Đang giao</Badge> :
-                             <Badge variant="outline" className="text-muted-foreground">Chưa giao</Badge>}
+                             order.deliveryStatus === 'PROCESSING' ? <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200">Đang xử lý</Badge> :
+                             order.deliveryStatus === 'PENDING' ? <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Chờ xác nhận</Badge> :
+                             order.deliveryStatus === 'RETURNED' ? <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Hoàn trả</Badge> :
+                             order.deliveryStatus === 'CANCELLED' ? <Badge variant="destructive">Huỷ</Badge> :
+                             <Badge variant="outline" className="text-muted-foreground">{order.deliveryStatus}</Badge>}
                         </TableCell>
                       </TableRow>
                     ))}

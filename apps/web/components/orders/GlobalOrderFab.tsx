@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import OrderCreateSheet from './OrderCreateSheet';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -8,7 +8,21 @@ import { useRouter } from 'next/navigation';
 
 export default function GlobalOrderFab() {
   const [isOpen, setIsOpen] = useState(false);
+  const [initialCustomerId, setInitialCustomerId] = useState<string | undefined>();
   const router = useRouter();
+
+  useEffect(() => {
+    const handleOpen = (e: any) => {
+      if (e.detail?.customerId) {
+        setInitialCustomerId(e.detail.customerId);
+      } else {
+        setInitialCustomerId(undefined);
+      }
+      setIsOpen(true);
+    };
+    window.addEventListener('open-global-order-fab', handleOpen);
+    return () => window.removeEventListener('open-global-order-fab', handleOpen);
+  }, []);
 
   return (
     <>
@@ -29,7 +43,11 @@ export default function GlobalOrderFab() {
 
       <OrderCreateSheet 
         isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
+        initialCustomerId={initialCustomerId}
+        onClose={() => {
+          setIsOpen(false);
+          setInitialCustomerId(undefined);
+        }}
         onSuccess={() => {
           setIsOpen(false);
           router.refresh(); // Refresh current page to reflect new orders if needed

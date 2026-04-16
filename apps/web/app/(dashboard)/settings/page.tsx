@@ -164,6 +164,7 @@ export default function SettingsPage() {
         taxCode: company.taxCode,
         bankInfo: company.bankInfo,
         invoiceFooter: company.invoiceFooter,
+        treatBlankAsZero: company.treatBlankAsZero,
       });
       toast.success('Cập nhật cấu hình thành công!');
     } catch (e: any) {
@@ -327,6 +328,16 @@ export default function SettingsPage() {
                           onChange={e => setCompany({...company, invoiceFooter: e.target.value})} 
                           placeholder="Cảm ơn quý khách đã mua sắm!"
                           className="resize-none"
+                        />
+                      </div>
+                      <div className="md:col-span-2 space-y-2 flex items-center justify-between bg-muted/20 p-4 rounded-lg border border-border/50">
+                        <div className="space-y-0.5">
+                          <Label className="font-medium text-base">Áp dụng giá 0đ khi bỏ trống nhập liệu (Dành cho QC/Dev)</Label>
+                          <p className="text-sm text-muted-foreground">Nếu bật, khi tạo/sửa giá sản phẩm mà để trống ô Giá Nhóm, hệ thống sẽ gán thành 0đ thay vì bỏ qua giá trị cấu hình.</p>
+                        </div>
+                        <Switch 
+                          checked={company.treatBlankAsZero || false} 
+                          onCheckedChange={checked => setCompany({...company, treatBlankAsZero: checked})}
                         />
                       </div>
                     </div>

@@ -47,8 +47,12 @@ function EditableCell({
   const [val, setVal] = useState(value === 0 ? '' : value?.toString() || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [prevValueProp, setPrevValueProp] = useState(value);
 
-  useEffect(() => setVal(value === 0 ? '' : value?.toString() || ''), [value]);
+  if (value !== prevValueProp) {
+    setPrevValueProp(value);
+    setVal(value === 0 ? '' : value?.toString() || '');
+  }
 
   const handleBlur = async () => {
     setIsEditing(false);
