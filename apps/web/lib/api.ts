@@ -123,7 +123,7 @@ export const crmApi = {
     apiFetch(`/customers/${id}`, { method: 'DELETE', token }),
 
   importCustomers: (token: string, customers: unknown[]) =>
-    apiFetch('/customers/import', { method: 'POST', token, body: customers }),
+    apiFetch<{ message: string, importedCount: number }>('/customers/import', { method: 'POST', token, body: customers }),
 };
 
 // ─── Address Proxy API ───────────────────────────────────────────────────────
@@ -162,6 +162,31 @@ export const productsApi = {
 
   deleteProduct: (token: string, id: string) =>
     apiFetch(`/products/${id}`, { method: 'DELETE', token }),
+
+  importProducts: (token: string, products: unknown[]) =>
+    apiFetch<{ successCount: number, totalTried: number }>('/products/import', { method: 'POST', token, body: products }),
+
+  getNextSku: (token: string, categoryId: string) =>
+    apiFetch<{ sku: string }>(`/products/next-sku/${categoryId}`, { token }),
+};
+
+// ─── Product Categories API ──────────────────────────────────────────────────
+
+export const categoriesApi = {
+  getCategories: (token: string) =>
+    apiFetch<ProductCategory[]>('/product-categories', { token }),
+
+  createCategory: (token: string, data: Partial<ProductCategory>) =>
+    apiFetch<ProductCategory>('/product-categories', { method: 'POST', token, body: data }),
+
+  updateCategory: (token: string, id: string, data: Partial<ProductCategory>) =>
+    apiFetch<ProductCategory>(`/product-categories/${id}`, { method: 'PATCH', token, body: data }),
+
+  deleteCategory: (token: string, id: string) =>
+    apiFetch(`/product-categories/${id}`, { method: 'DELETE', token }),
+
+  migrateSkus: (token: string) =>
+    apiFetch<{ totalMigrated: number }>('/product-categories/migrate-skus', { method: 'POST', token }),
 };
 
 // ─── Orders API ──────────────────────────────────────────────────────────────
@@ -199,6 +224,9 @@ export const ordersApi = {
 
   deleteOrder: (token: string, id: string) =>
     apiFetch(`/orders/${id}`, { method: 'DELETE', token }),
+
+  importOrders: (token: string, orders: unknown[]) =>
+    apiFetch<{ successCount: number, totalTried: number }>('/orders/import', { method: 'POST', token, body: orders }),
 };
 
 // ─── Dashboard API ───────────────────────────────────────────────────────────
@@ -264,6 +292,21 @@ export const settingsApi = {
     apiFetch(`/settings/cancel-reasons/${id}`, { method: 'DELETE', token }),
 };
 
+// ─── Advanced API ────────────────────────────────────────────────────────────
+
+export const advancedApi = {
+  deleteAllProducts: (token: string) =>
+    apiFetch('/settings/advanced/delete-all/products', { method: 'DELETE', token }),
+  deleteAllCustomers: (token: string) =>
+    apiFetch('/settings/advanced/delete-all/customers', { method: 'DELETE', token }),
+  deleteAllOrders: (token: string) =>
+    apiFetch('/settings/advanced/delete-all/orders', { method: 'DELETE', token }),
+  deleteAllCustomerGroups: (token: string) =>
+    apiFetch('/settings/advanced/delete-all/customer-groups', { method: 'DELETE', token }),
+  deleteAllProductCategories: (token: string) =>
+    apiFetch('/settings/advanced/delete-all/product-categories', { method: 'DELETE', token }),
+};
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface User {
@@ -283,9 +326,19 @@ export interface CustomerGroup {
   _count?: { customers: number };
 }
 
+export interface ProductCategory {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  isActive: boolean;
+  _count?: { products: number };
+}
+
 export interface Customer {
   id: string;
-  phone: string;
+  code?: string;
+  phone?: string;
   fullName: string;
   groupId: string;
   provinceName?: string;
@@ -315,6 +368,8 @@ export interface Product {
   id: string;
   name: string;
   sku: string;
+  categoryId: string;
+  category?: ProductCategory;
   unit: string;
   retailPrice: number;
   costPrice?: number | null;

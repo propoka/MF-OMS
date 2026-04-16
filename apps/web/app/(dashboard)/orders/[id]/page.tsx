@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ordersApi, settingsApi, Order, CompanySettings } from '@/lib/api';
+import { ordersApi, settingsApi, Order, CompanySettings, CancelReason } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Printer, AlertTriangle, Truck, ShieldAlert, Pencil, History, Phone, MapPin, User, Package, FileText, Clock } from 'lucide-react';
+import { ArrowLeft, Printer, AlertTriangle, Truck, ShieldAlert, Pencil, History, Phone, MapPin, User, Package, FileText, Clock, Trash2, FileDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import * as xlsx from 'xlsx';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -27,13 +28,17 @@ import { AlertCircle } from 'lucide-react';
 export default function OrderDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { getToken } = useAuth();
+  const { getToken, user } = useAuth();
   
   const [order, setOrder] = useState<Order | null>(null);
   const [company, setCompany] = useState<CompanySettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [cancelReasons, setCancelReasons] = useState<CancelReason[]>([]);
+  const [selectedCancelReasonId, setSelectedCancelReasonId] = useState<string>('');
+  const [cancelNotes, setCancelNotes] = useState<string>('');
 
   useEffect(() => {
     fetchDetail();
@@ -43,12 +48,14 @@ export default function OrderDetailPage() {
   const fetchDetail = async () => {
     try {
       setIsLoading(true);
-      const [orderRes, companyRes] = await Promise.all([
+      const [orderRes, companyRes, reasonsRes] = await Promise.all([
         ordersApi.getOrder(getToken()!, id as string),
-        settingsApi.getCompanySettings(getToken()!).catch(() => null)
+        settingsApi.getCompanySettings(getToken()!).catch(() => null),
+        settingsApi.getCancelReasons(getToken()!).catch(() => [])
       ]);
       setOrder(orderRes);
       if (companyRes) setCompany(companyRes);
+      if (reasonsRes) setCancelReasons(reasonsRes.filter(r => r.isActive));
     } catch (err: any) {
       toast.error(err.message || 'Không kết nối được dữ liệu hoá đơn.');
       router.push('/orders');
@@ -57,12 +64,13 @@ export default function OrderDetailPage() {
     }
   };
 
-  const updateStatus = async (val: string | null) => {
+  const updateStatus = async (val: string | null, extraData?: { cancelReasonId?: string, cancelNotes?: string }) => {
     if (!val) return;
     try {
       setIsSaving(true);
       await ordersApi.updateStatus(getToken()!, id as string, {
-        deliveryStatus: val
+        deliveryStatus: val,
+        ...extraData
       });
       toast.success('Cập nhật trạng thái thành công.');
       fetchDetail();
@@ -73,8 +81,81 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleDeleteOrder = async () => {
+    try {
+      setIsSaving(true);
+      await ordersApi.deleteOrder(getToken()!, id as string);
+      toast.success('Đã xoá đơn hàng vĩnh viễn.');
+      router.push('/orders');
+    } catch (e: any) {
+      toast.error(e.message || 'Không thể xoá đơn hàng.');
+      setIsSaving(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportExcel = () => {
+    if (!order) return;
+    const detailsData: any[] = [];
+    const phoneStr = order.snapshotCustomerPhone ? String(order.snapshotCustomerPhone) : '';
+    
+    if (!order.items || order.items.length === 0) {
+      detailsData.push({
+        'Mã Đơn': order.orderNumber,
+        'Ngày tạo': new Date(order.createdAt).toLocaleString('vi-VN'),
+        'Trạng thái': getStatusLabel(order.deliveryStatus),
+        'Khách hàng': order.snapshotCustomerName,
+        'SĐT': phoneStr,
+        'Nhóm khách': order.customer?.group?.name || 'Khách lẻ',
+        'SKU': '',
+        'Tên SP': '',
+        'ĐVT': '',
+        'SL': 0,
+        'Đơn giá bán': 0,
+        'Chiết khấu dòng': 0,
+        'Thành Tiền Dòng': 0,
+        'Tổng tiền Hàng (Đơn)': Number(order.subtotal || 0),
+        'Chiết khấu Đơn': Number(order.discountAmount || 0),
+        'Phí Ship': Number(order.shippingFee || 0),
+        'Thực thu': Number(order.totalAmount || 0),
+        'Thu ngân': order.createdBy?.fullName || '',
+        'Ghi chú': order.notes || ''
+      });
+    } else {
+      order.items.forEach(i => {
+        detailsData.push({
+          'Mã Đơn': order.orderNumber,
+          'Ngày tạo': new Date(order.createdAt).toLocaleString('vi-VN'),
+          'Trạng thái': getStatusLabel(order.deliveryStatus),
+          'Khách hàng': order.snapshotCustomerName,
+          'SĐT': phoneStr,
+          'Nhóm khách': order.customer?.group?.name || 'Khách lẻ',
+          'SKU': i.snapshotProductSku,
+          'Tên SP': i.snapshotProductName,
+          'ĐVT': i.snapshotProductUnit || '',
+          'SL': Number(i.quantity || 0),
+          'Đơn giá bán': Number(i.snapshotUnitPrice || 0),
+          'Chiết khấu dòng': Number(i.lineDiscount || 0),
+          'Thành Tiền Dòng': Number(i.lineTotal || 0),
+          'Tổng tiền Hàng (Đơn)': Number(order.subtotal || 0),
+          'Chiết khấu Đơn': Number(order.discountAmount || 0),
+          'Phí Ship': Number(order.shippingFee || 0),
+          'Thực thu': Number(order.totalAmount || 0),
+          'Thu ngân': order.createdBy?.fullName || '',
+          'Ghi chú': order.notes || ''
+        });
+      });
+    }
+
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.json_to_sheet(detailsData);
+    ws['!cols'] = [{wch: 15}, {wch: 20}, {wch: 15}, {wch: 20}, {wch: 15}, {wch: 15}, {wch: 12}, {wch: 30}];
+    xlsx.utils.book_append_sheet(wb, ws, 'Order Details');
+    xlsx.writeFile(wb, `ChiTietDonHang_${order.orderNumber}.xlsx`);
+    toast.success('Đã tải xuống file Excel.');
   };
 
   const formatMoney = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -111,6 +192,7 @@ export default function OrderDetailPage() {
   const normalizedStatus = (order.deliveryStatus || '').toUpperCase();
   const isCancelled = ['CANCELLED', 'RETURNED'].includes(normalizedStatus);
   const totalDiscount = Number(order.discountAmount || 0) + (order.items?.reduce((sum, item) => sum + Number(item.lineDiscount || 0), 0) || 0);
+  const totalQuantity = order.items?.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0) || 0;
 
   return (
     <div className="flex flex-col gap-6 pb-8">
@@ -141,6 +223,14 @@ export default function OrderDetailPage() {
                 <ShieldAlert className="mr-2 h-4 w-4" /> Huỷ đơn hàng
               </Button>
           )}
+          {user?.role === 'ADMIN' && (
+             <Button variant="outline" onClick={() => setIsDeleteModalOpen(true)} className="shadow-sm border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors" disabled={isSaving}>
+               <Trash2 className="mr-2 h-4 w-4" /> Xoá
+             </Button>
+          )}
+          <Button variant="outline" onClick={handleExportExcel} className="shadow-sm hover:bg-emerald-50 hover:text-emerald-700 bg-background hover:border-emerald-200 transition-colors cursor-pointer">
+            <FileDown className="mr-2 h-4 w-4" /> Export Excel
+          </Button>
           <Button onClick={handlePrint} className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5">
             <Printer className="mr-2 h-5 w-5" /> In Hoá Đơn
           </Button>
@@ -150,7 +240,7 @@ export default function OrderDetailPage() {
       {isCancelled && (
         <div className="p-4 bg-destructive/10 text-destructive text-sm rounded-xl flex items-center gap-3 print:hidden border border-destructive/20 shadow-sm">
           <AlertTriangle className="h-5 w-5 shrink-0" />
-          <span className="leading-relaxed">Đơn hàng đã bị <strong>HUỶ</strong> hoặc <strong>HOÀN</strong>. Tồn kho của các sản phẩm trong đơn đã được tự động cộng lại vào hệ thống.</span>
+          <span className="leading-relaxed">Đơn hàng đã bị <strong>HUỶ</strong> hoặc <strong>HOÀN</strong>.</span>
         </div>
       )}
 
@@ -251,20 +341,45 @@ export default function OrderDetailPage() {
               <style dangerouslySetInnerHTML={{__html: `
                 @media print {
                   @page { size: A5; margin: 15mm; }
+                  
+                  /* Ép toàn bộ các thẻ con đều trong suốt màu nền và chữ phải đen */
+                  * {
+                    background-color: transparent !important;
+                    color: black !important;
+                  }
+                  
+                  /* Tẩy viền bo tròn và đổ bóng của khối Card bao ngoài hóa đơn */
+                  .glass, .shadow-sm, [class*="border-muted"] {
+                    box-shadow: none !important;
+                    border: none !important;
+                    border-radius: 0 !important;
+                  }
+                  
                   body { background: white !important; padding: 0 !important; margin: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                   
-                  /* Hide all UI elements except the receipt */
-                  body * { visibility: hidden; }
-                  #pos-receipt, #pos-receipt * { visibility: visible; }
+                  /* Gỡ bỏ giới hạn chiều cao từ các container bên ngoài để nội dung không bị cắt khi sang trang mới */
+                  html, body, #__next, #root, [data-sidebar="wrapper"], [data-sidebar="inset"], main, section, .h-screen, .overflow-hidden, .glass, .print\\:col-span-3, .xl\\:col-span-2 { 
+                    height: auto !important; 
+                    min-height: 0 !important; 
+                    overflow: visible !important; 
+                    position: static !important; 
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    max-width: 100% !important;
+                    width: auto !important;
+                  }
                   
-                  /* Rip the receipt out of the layout flow completely */
+                  /* Ẩn triệt để thanh sidebar và top header của layout chính */
+                  [data-sidebar="sidebar"], header { 
+                    display: none !important; 
+                  }
+                  
+                  /* Trả lại dòng chảy chuẩn (flow) cho hóa đơn để trình duyệt tự ngắt trang */
                   #pos-receipt { 
-                    position: absolute !important; 
-                    left: 0 !important; 
-                    top: 0 !important; 
                     width: 100% !important; 
                     margin: 0 !important;
                     padding: 0 !important;
+                    display: block !important;
                   }
                 }
               `}} />
@@ -311,65 +426,69 @@ export default function OrderDetailPage() {
                   <span className="font-bold uppercase w-full">{order.snapshotCustomerName}</span>
                 </div>
 
-                <div className="flex gap-1">
+                <div className="hidden gap-1">
                   <span className="font-semibold min-w-[55px]">Giao tới:</span>
                   <span className="w-full">{[order.customer?.addressDetail, order.customer?.wardName, order.customer?.provinceName].filter(Boolean).join(', ') || 'Mua trực tiếp tại quầy'}</span>
                 </div>
               </div>
 
-              <table className="w-full text-[11px] xl:text-[12px] mb-4 border-collapse border border-black/50">
-                <thead className="bg-gray-100/50">
+              <table className="w-full text-[10px] xl:text-[11px] mb-4 border-collapse border border-black">
+                <thead className="bg-transparent">
                   <tr>
-                    <th className="border border-black/50 text-center py-1 font-bold w-[6%]">STT</th>
-                    <th className="border border-black/50 text-left py-1 font-bold px-1.5">Tên hàng / Dịch vụ</th>
-                    <th className="border border-black/50 text-center py-1 font-bold w-[10%]">SL</th>
-                    <th className="border border-black/50 text-right py-1 font-bold px-1.5 w-[16%]">Đơn giá</th>
-                    <th className="border border-black/50 text-right py-1 font-bold px-1.5 w-[20%]">Thành tiền</th>
+                    <th className="border border-black text-center py-1 font-bold w-[5%]">STT</th>
+                    <th className="border border-black text-left py-1 font-bold px-1.5 w-[15%]">Mã SP</th>
+                    <th className="border border-black text-left py-1 font-bold px-1.5">Tên sản phẩm</th>
+                    <th className="border border-black text-center py-1 font-bold w-[8%]">ĐVT</th>
+                    <th className="border border-black text-center py-1 font-bold w-[8%]">SL</th>
+                    <th className="border border-black text-right py-1 font-bold px-1.5 w-[15%]">Đơn giá</th>
+                    <th className="border border-black text-right py-1 font-bold px-1.5 w-[18%]">Thành tiền</th>
                   </tr>
                 </thead>
                 <tbody>
                   {order.items?.map((item, idx) => (
                     <tr key={idx}>
-                      <td className="border border-black/50 text-center py-1 px-1">{idx + 1}</td>
-                      <td className="border border-black/50 text-left py-1 px-1.5">
+                      <td className="border border-black text-center py-1 px-1">{idx + 1}</td>
+                      <td className="border border-black text-left py-1 px-1.5 break-all leading-tight">{item.snapshotProductSku}</td>
+                      <td className="border border-black text-left py-1 px-1.5">
                         <div className="font-semibold leading-tight">{item.snapshotProductName}</div>
-                        {item.lineDiscount > 0 && <div className="text-[9.5px] italic text-black/70 leading-tight">- CK: {formatMoney(item.lineDiscount)}/SP</div>}
+                        {item.lineDiscount > 0 && <div className="text-[9px] italic text-black leading-tight">- CK: {formatMoney(item.lineDiscount)}/SP</div>}
                       </td>
-                      <td className="border border-black/50 text-center py-1 font-semibold px-1">{item.quantity}</td>
-                      <td className="border border-black/50 text-right py-1 px-1.5">{formatMoney(item.snapshotUnitPrice)}</td>
-                      <td className="border border-black/50 text-right py-1 font-bold px-1.5">{formatMoney(item.lineTotal)}</td>
+                      <td className="border border-black text-center py-1 px-1">{item.snapshotProductUnit}</td>
+                      <td className="border border-black text-center py-1 font-semibold px-1">{item.quantity}</td>
+                      <td className="border border-black text-right py-1 px-1.5">{formatMoney(item.snapshotUnitPrice)}</td>
+                      <td className="border border-black text-right py-1 font-bold px-1.5">{formatMoney(item.lineTotal)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
               <div className="flex justify-end mb-4 text-[11px] xl:text-[12px]">
-                <div className="w-[50%]">
+                <div className="w-[60%]">
                   <div className="flex justify-between items-center py-0.5">
-                    <span className="font-semibold">Cộng tiền hàng:</span>
+                    <span className="font-semibold">Tổng số lượng:</span>
+                    <span>{totalQuantity}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="font-semibold">Tổng tiền:</span>
                     <span>{formatMoney(order.subtotal)}</span>
                   </div>
-                  {totalDiscount > 0 && (
-                    <div className="flex justify-between items-center py-0.5">
-                      <span className="font-semibold">Trừ chiết khấu:</span>
-                      <span>- {formatMoney(totalDiscount)}</span>
-                    </div>
-                  )}
-                  {order.shippingFee > 0 && (
-                    <div className="flex justify-between items-center py-0.5 border-b border-black/20 pb-1">
-                      <span className="font-semibold">Phí vận chuyển:</span>
-                      <span>+ {formatMoney(order.shippingFee)}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="font-semibold">Chiết khấu:</span>
+                    <span>{totalDiscount > 0 ? `- ${formatMoney(totalDiscount)}` : '0 ₫'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5 border-b border-black pb-1">
+                    <span className="font-semibold">Phí vận chuyển:</span>
+                    <span>{order.shippingFee > 0 ? `+ ${formatMoney(order.shippingFee)}` : '0 ₫'}</span>
+                  </div>
                   <div className="flex justify-between items-center py-1 mt-0.5">
-                    <span className="font-bold text-[13px] uppercase">Tổng cộng:</span>
+                    <span className="font-bold text-[13px] uppercase">Khách phải trả:</span>
                     <span className="font-black text-[15px]">{formatMoney(order.totalAmount)}</span>
                   </div>
                 </div>
               </div>
 
               {order.notes && (
-                <div className="mb-4 p-1.5 border border-black/30 bg-gray-50/50">
+                <div className="mb-4 p-1.5 border border-black bg-transparent">
                   <span className="font-bold text-[10px] uppercase">Ghi chú:</span>
                   <p className="text-[11px] italic mt-0.5 leading-tight">{order.notes}</p>
                 </div>
@@ -378,15 +497,15 @@ export default function OrderDetailPage() {
               <div className="grid grid-cols-2 text-center pt-2 px-2 text-[11px]">
                 <div>
                   <p className="font-bold uppercase mb-8">Khách Hàng</p>
-                  <p className="italic text-[9.5px] text-gray-500">(Ký & Ghi rõ họ tên)</p>
+                  <p className="italic text-[9.5px] text-black">(Ký & Ghi rõ họ tên)</p>
                 </div>
                 <div>
                   <p className="font-bold uppercase mb-8">Chữ Ký Người Bán</p>
-                  <p className="italic text-[9.5px] text-gray-500">(Ký & Ghi rõ họ tên)</p>
+                  <p className="italic text-[9.5px] text-black">(Ký & Ghi rõ họ tên)</p>
                 </div>
               </div>
               
-              <div className="text-center pt-2 mt-4 mb-2 border-t border-dashed border-black/30">
+              <div className="text-center pt-2 mt-4 mb-2 border-t border-dashed border-black">
                 <p className="font-bold text-[11px]">Xin Chân Thành Cảm Ơn Quý Khách!</p>
               </div>
             </div>
@@ -564,7 +683,7 @@ export default function OrderDetailPage() {
                            <span className="text-[10px] text-destructive/60 whitespace-nowrap ml-2 bg-destructive/10 px-1.5 py-0.5 rounded">Gần đây</span>
                          </div>
                          <p className="text-destructive/80 text-[11px] leading-relaxed pl-[18px]">
-                           Đơn hàng đã bị huỷ và tồn kho đã được phục hồi.
+                           Đơn hàng đã bị huỷ bởi người dùng.
                          </p>
                        </div>
                      )}
@@ -586,15 +705,81 @@ export default function OrderDetailPage() {
               Hủy đơn hàng?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-foreground/80">
-              Bạn có chắc chắn muốn hủy đơn hàng này không? Sau khi chuyển trạng thái thành Hủy, hệ thống sẽ tự động hoàn trả số lượng dự trữ vào quỹ tồn kho. Hành động này không thể hoàn tác.
+              Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-2 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold leading-none text-foreground">
+                Lý do huỷ <span className="text-destructive">*</span>
+              </label>
+              <Select value={selectedCancelReasonId} onValueChange={setSelectedCancelReasonId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="-- Chọn lý do huỷ --">
+                    {selectedCancelReasonId 
+                      ? cancelReasons.find(r => r.id === selectedCancelReasonId)?.label 
+                      : "-- Chọn lý do huỷ --"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {cancelReasons.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                  ))}
+                  {cancelReasons.length === 0 && <SelectItem value="custom" disabled>Chưa có lý do nào được cài đặt...</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-semibold leading-none text-foreground">
+                Ghi chú thêm <span className="text-muted-foreground font-normal whitespace-nowrap ml-1">(Tuỳ chọn)</span>
+              </label>
+              <textarea 
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" 
+                placeholder="Nhập thêm chi tiết nếu cần..."
+                value={cancelNotes}
+                onChange={e => setCancelNotes(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel className="hover:bg-muted/50 border-0 bg-transparent shadow-none">
+              Hủy bỏ
+            </AlertDialogCancel>
+            <Button 
+               variant="destructive" 
+               disabled={!selectedCancelReasonId} 
+               onClick={() => { 
+                 updateStatus('CANCELLED', { cancelReasonId: selectedCancelReasonId, cancelNotes }); 
+                 setIsCancelModalOpen(false); 
+               }}
+            >
+              Xác nhận Hủy Đơn
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* MODAL DELETE */}
+      <AlertDialog open={isDeleteModalOpen} onOpenChange={(open) => !open && setIsDeleteModalOpen(false)}>
+        <AlertDialogContent className="glass sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center text-destructive">
+              <Trash2 className="w-5 h-5 mr-2" />
+              Xóa vĩnh viễn đơn hàng?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground/80">
+              Hành động này sẽ <strong className="text-destructive">xóa toàn bộ dư liệu</strong> của hóa đơn này khỏi hệ thống vĩnh viễn và không thể khôi phục. Bạn có chắc chắn muốn tiếp tục không?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="hover:bg-muted/50 border-0 bg-transparent shadow-none">
               Hủy bỏ
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => { updateStatus('CANCELLED'); setIsCancelModalOpen(false); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Xác nhận Hủy Đơn
+            <AlertDialogAction onClick={() => { handleDeleteOrder(); setIsDeleteModalOpen(false); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Xác nhận Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

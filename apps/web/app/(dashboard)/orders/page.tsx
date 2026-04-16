@@ -16,23 +16,34 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, ShoppingCart, Eye, Filter, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, ShoppingCart, Eye, Filter, ChevronLeft, ChevronRight, Trash2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import * as xlsx from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog';
 
 export default function OrdersPage() {
-  const { getToken } = useAuth();
+  const { getToken, user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [limit, setLimit] = useState(10);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -54,11 +65,11 @@ export default function OrdersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [getToken, search, statusFilter, page]);
+  }, [getToken, search, statusFilter, page, limit]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, limit]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -67,39 +78,28 @@ export default function OrdersPage() {
     return () => clearTimeout(timer);
   }, [fetchOrders]);
 
+  useEffect(() => {
+    const handleOrderCreated = () => fetchOrders();
+    window.addEventListener('order-created', handleOrderCreated);
+    return () => window.removeEventListener('order-created', handleOrderCreated);
+  }, [fetchOrders]);
+
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
-  const handleExportExcel = async () => {
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return;
     try {
-      setIsLoading(true);
-      const res = await ordersApi.getOrders(getToken()!, { 
-        take: 10000, // Lấy thoải mái để export
-        search, 
-        status: statusFilter === 'ALL' ? undefined : statusFilter 
-      });
-      
-      const exportData = res.data.map(o => ({
-        'Mã Đơn': o.orderNumber,
-        'Ngày tạo': new Date(o.createdAt).toLocaleString('vi-VN'),
-        'Khách hàng': o.snapshotCustomerName,
-        'Điện thoại': o.snapshotCustomerPhone,
-        'Trạng thái': o.deliveryStatus,
-        'Tổng tiền': o.totalAmount,
-        'Thu ngân': o.createdBy?.fullName || '',
-        'Ghi chú': o.notes || ''
-      }));
-
-      const ws = xlsx.utils.json_to_sheet(exportData);
-      const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, 'Danh sách Đơn hàng');
-      xlsx.writeFile(wb, `DonHang_OMS_${new Date().toISOString().slice(0,10)}.xlsx`);
-      toast.success('Xuất file Excel thành công!');
-    } catch (err) {
-      toast.error('Lỗi phân tích khi xuất file Excel');
+      setIsDeleting(true);
+      await ordersApi.deleteOrder(getToken()!, orderToDelete);
+      toast.success('Đã xoá đơn hàng vĩnh viễn.');
+      setOrderToDelete(null);
+      fetchOrders();
+    } catch (e: any) {
+      toast.error(e.message || 'Không thể xoá đơn hàng.');
     } finally {
-      setIsLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -125,15 +125,6 @@ export default function OrdersPage() {
         </div>
         <div className="flex items-center gap-3">
           <Button 
-            variant="outline" 
-            onClick={handleExportExcel} 
-            disabled={isLoading}
-            className="bg-background shadow-sm hover:bg-muted font-medium transition-all duration-200 border-muted-foreground/30"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Xuất Excel
-          </Button>
-          <Button 
             onClick={() => setIsSheetOpen(true)}
             className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5"
           >
@@ -158,7 +149,7 @@ export default function OrdersPage() {
             
             <div className="w-[200px] shadow-sm">
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? 'ALL')} >
-                <SelectTrigger className="w-full h-10 border-muted-foreground/30 bg-background hover:bg-muted/30 transition-colors focus:ring-1 focus:ring-primary focus-visible:outline-none focus:border-primary">
+                <SelectTrigger className="w-full !h-10 border-muted-foreground/30 bg-background hover:bg-muted/30 transition-colors focus:ring-1 focus:ring-primary focus-visible:outline-none focus:border-primary">
                   <div className="flex items-center gap-2 font-medium text-foreground truncate">
                     <Filter size={15} className="text-muted-foreground shrink-0" /> 
                     <SelectValue placeholder="Lọc trạng thái">
@@ -182,6 +173,23 @@ export default function OrdersPage() {
                   <SelectItem value="CANCELLED">Huỷ</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Hiển thị:</span>
+              <div className="w-[160px] shadow-sm">
+                <Select value={limit.toString()} onValueChange={(v) => setLimit(Number(v))}>
+                  <SelectTrigger className="w-full !h-10 border-muted-foreground/30 bg-background hover:bg-muted/30 transition-colors focus:ring-1 focus:ring-primary focus-visible:outline-none focus:border-primary">
+                    <SelectValue placeholder="Hiển thị" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 dòng / trang</SelectItem>
+                    <SelectItem value="20">20 dòng / trang</SelectItem>
+                    <SelectItem value="50">50 dòng / trang</SelectItem>
+                    <SelectItem value="100">100 dòng / trang</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -239,11 +247,18 @@ export default function OrdersPage() {
                     {formatMoney(o.totalAmount)}
                   </TableCell>
                   <TableCell className="px-6 text-right">
-                    <Link href={`/orders/${o.id}`}>
-                      <Button variant="outline" size="sm" className="hover:text-primary transition-colors">
-                        <Eye className="mr-2 h-4 w-4" /> Chi tiết
-                      </Button>
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                       <Link href={`/orders/${o.id}`}>
+                         <Button variant="outline" size="sm" className="hover:text-primary transition-colors">
+                           <Eye className="mr-2 h-4 w-4" /> Chi tiết
+                         </Button>
+                       </Link>
+                       {user?.role === 'ADMIN' && (
+                         <Button variant="outline" size="sm" onClick={() => setOrderToDelete(o.id)} className="text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground transition-colors" title="Xoá đơn hàng">
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                       )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -289,6 +304,29 @@ export default function OrdersPage() {
           fetchOrders();
         }}
       />
+
+      {/* MODAL DELETE */}
+      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+        <AlertDialogContent className="glass sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center text-destructive">
+              <Trash2 className="w-5 h-5 mr-2" />
+              Xóa vĩnh viễn đơn hàng?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-foreground/80">
+              Hành động này sẽ <strong className="text-destructive">xóa toàn bộ dư liệu</strong> của hóa đơn này khỏi hệ thống vĩnh viễn và không thể khôi phục. Bạn có chắc chắn muốn tiếp tục không?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="hover:bg-muted/50 border-0 bg-transparent shadow-none" disabled={isDeleting}>
+              Hủy bỏ
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => { handleDeleteOrder(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={isDeleting}>
+              {isDeleting ? 'Đang xoá...' : 'Xác nhận Xóa'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

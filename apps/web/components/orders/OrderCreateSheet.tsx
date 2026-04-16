@@ -42,7 +42,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
   
   // Selections
   const [customerId, setCustomerId] = useState<string>('');
-  const [cart, setCart] = useState<{product: Product, quantity: number, discount: number}[]>([]);
+  const [cart, setCart] = useState<{product: Product, quantity: any, discount: number, discountType?: 'amount' | 'percent'}[]>([]);
   const [searchProduct, setSearchProduct] = useState('');
   
   // Combobox Customer state
@@ -123,7 +123,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
           items: validItems.map(c => ({
             productId: c.product.id,
             quantity: parseQty(c.quantity),
-            manualDiscount: c.discount || 0,
+            manualDiscount: getAbsoluteDiscount(c),
           }))
         });
         const map: Record<string, { unitPrice: number; source: string; note: string; lineTotal: number }> = {};
@@ -149,9 +149,9 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
-        return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        return prev.map(item => item.product.id === product.id ? { ...item, quantity: parseQty(item.quantity) + 1 } : item);
       }
-      return [{ product, quantity: 1, discount: 0 }, ...prev];
+      return [...prev, { product, quantity: 1, discount: 0, discountType: 'amount' as const }];
     });
   };
 
@@ -173,6 +173,22 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
     return isNaN(parsed) ? 0 : parsed;
   };
   
+  const getAbsoluteDiscount = (item: { product: Product, quantity: any, discount: number, discountType?: 'amount' | 'percent' }) => {
+    if (item.discountType === 'percent') {
+      const qty = parseQty(item.quantity);
+      return Math.round((item.product.retailPrice * qty) * (item.discount || 0) / 100);
+    }
+    return item.discount || 0;
+  };
+  
+  const updateDiscountType = (productId: string, type: 'amount' | 'percent') => {
+    setCart(prev => prev.map(item => item.product.id === productId ? { 
+      ...item, 
+      discountType: type,
+      discount: 0 // Reset value when switching types
+    } : item));
+  };
+  
   const updateDiscount = (productId: string, rawDiscount: number | string) => {
     let discount = typeof rawDiscount === 'string' ? parseInt(rawDiscount.replace(/\D/g, '')) : rawDiscount;
     if (isNaN(discount)) discount = 0;
@@ -186,7 +202,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
   // Quick Calcs — ưu tiên pricing engine nếu có
   const tempSubtotal = pricingSubtotal != null ? pricingSubtotal : cart.reduce((acc, curr) => {
     const qty = parseQty(curr.quantity);
-    return acc + Math.max(0, (curr.product.retailPrice * qty) - (curr.discount || 0));
+    return acc + Math.max(0, (curr.product.retailPrice * qty) - getAbsoluteDiscount(curr));
   }, 0);
   const tempTotal = tempSubtotal + (shippingFee || 0);
 
@@ -204,7 +220,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
         items: cart.filter(c => parseQty(c.quantity) > 0).map(c => ({ 
           productId: c.product.id, 
           quantity: parseQty(c.quantity), 
-          manualDiscount: c.discount || 0
+          manualDiscount: getAbsoluteDiscount(c)
         })),
         discountAmount: 0,
         shippingFee,
@@ -240,10 +256,10 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
               <div className="space-y-4 p-5 bg-card border rounded-xl shadow-sm">
                 <div className="flex items-center gap-2 text-foreground font-semibold justify-between border-b pb-3">
                   <div className="flex items-center gap-2">
-                    <User size={18} className="text-emerald-600 shrink-0" />
+                    <User size={18} className="text-primary shrink-0" />
                     <h3>1. Khách hàng</h3>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setIsCustomerModalOpen(true)} className="h-8 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 focus-visible:ring-0">
+                  <Button variant="ghost" size="sm" onClick={() => setIsCustomerModalOpen(true)} className="h-8 px-2 text-primary hover:text-primary hover:bg-primary/10 focus-visible:ring-0">
                     <Plus size={16} className="mr-1" /> Thêm mới
                   </Button>
                 </div>
@@ -287,15 +303,15 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                     )}
                   </div>
                 ) : (
-                  <div className="bg-emerald-50 w-full p-2.5 px-3 rounded-lg border border-emerald-200 flex items-center justify-between shadow-sm">
+                  <div className="bg-primary/10 w-full p-2.5 px-3 rounded-lg border border-primary/30 flex items-center justify-between shadow-sm">
                     <div className="flex flex-col min-w-0 flex-1 pr-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <strong className="text-emerald-800 text-sm truncate max-w-full">{selectedCustomer.fullName}</strong>
-                        <Badge variant="secondary" className="bg-emerald-100/80 text-emerald-800 hover:bg-emerald-200/80 px-2 py-0 mx-1">{selectedCustomer.group?.name || 'Khách lẻ'}</Badge>
+                        <strong className="text-primary text-sm truncate max-w-full">{selectedCustomer.fullName}</strong>
+                        <Badge variant="secondary" className="bg-primary/20/80 text-primary hover:bg-primary/30/80 px-2 py-0 mx-1">{selectedCustomer.group?.name || 'Khách lẻ'}</Badge>
                       </div>
-                      <div className="text-xs text-emerald-600/80 mt-0.5">{selectedCustomer.phone}</div>
+                      <div className="text-xs text-primary/80 mt-0.5">{selectedCustomer.phone}</div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSearchCustomer('');}} className="h-7 w-7 p-0 shrink-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 rounded-full focus-visible:ring-0">
+                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSearchCustomer('');}} className="h-7 w-7 p-0 shrink-0 text-primary hover:text-primary hover:bg-primary/20 rounded-full focus-visible:ring-0">
                       <X size={16} />
                     </Button>
                   </div>
@@ -304,7 +320,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
 
               <div className="space-y-4 p-5 bg-card border rounded-xl shadow-sm flex-1 flex flex-col min-h-[300px]">
                 <div className="flex items-center gap-2 text-foreground font-semibold border-b pb-3">
-                  <PackageOpen size={18} className="text-emerald-600 shrink-0" />
+                  <PackageOpen size={18} className="text-primary shrink-0" />
                   <h3>2. Tìm Sản phẩm</h3>
                 </div>
                 <Input 
@@ -318,16 +334,16 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                   {filteredProducts.map(p => (
                     <div 
                       key={p.id} 
-                      className="border border-muted/60 bg-card p-2.5 px-3 rounded-lg flex items-center justify-between hover:border-emerald-500 hover:bg-emerald-50 cursor-pointer transition-colors group shadow-sm" 
+                      className="border border-muted/60 bg-card p-2.5 px-3 rounded-lg flex items-center justify-between hover:border-primary hover:bg-primary/10 cursor-pointer transition-colors group shadow-sm" 
                       onClick={() => addToCart(p)}
                     >
                       <div className="flex flex-col min-w-0 pr-3 flex-1">
-                        <div className="text-sm font-medium truncate group-hover:text-emerald-800 transition-colors" title={p.name}>{p.name}</div>
+                        <div className="text-sm font-medium truncate group-hover:text-primary transition-colors" title={p.name}>{p.name}</div>
                         <div className="text-xs text-muted-foreground mt-0.5 truncate">{p.sku}</div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-[13px] font-bold text-foreground group-hover:text-emerald-700">{formatMoney(p.retailPrice)}</span>
-                        <div className="bg-muted/50 group-hover:bg-emerald-600 group-hover:text-white text-muted-foreground rounded-full p-1.5 transition-all">
+                        <span className="text-[13px] font-bold text-foreground group-hover:text-primary">{formatMoney(p.retailPrice)}</span>
+                        <div className="bg-muted/50 group-hover:bg-primary group-hover:text-white text-muted-foreground rounded-full p-1.5 transition-all">
                           <Plus size={14} />
                         </div>
                       </div>
@@ -341,8 +357,8 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
             <div className="w-full lg:w-2/3 border rounded-xl shadow-sm flex flex-col bg-card overflow-hidden h-full max-h-full">
               <div className="p-4 border-b bg-muted/40 text-foreground font-semibold flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-emerald-600" />
-                  <h3>Giỏ hàng ({cart.length} mục)</h3>
+                  <ShoppingCart size={18} className="text-primary" />
+                  <h3>Giỏ hàng ({cart.length} mục - Tổng SL: {cart.reduce((acc, curr) => acc + parseQty(curr.quantity), 0)})</h3>
                 </div>
               </div>
               <div className="flex-1 overflow-auto relative">
@@ -405,22 +421,42 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                             </div>
                           </td>
                           <td className="p-3 text-center">
-                             <Input 
-                                type="text" 
-                                value={c.discount === 0 ? '' : new Intl.NumberFormat('vi-VN').format(c.discount)} 
-                                onChange={e => {
-                                  const numericValue = Number(e.target.value.replace(/\D/g, ''));
-                                  updateDiscount(c.product.id, numericValue);
-                                }} 
-                                placeholder="0" 
-                                className="h-8 max-w-[100px] mx-auto text-right bg-background shadow-sm text-sm" 
-                              />
+                             <div className="flex items-center mx-auto w-[120px] bg-background border shadow-sm rounded-md focus-within:ring-1 focus-within:ring-primary overflow-hidden text-sm">
+                                <Input 
+                                  type="text" 
+                                  value={c.discount === 0 ? '' : (c.discountType === 'percent' ? c.discount : new Intl.NumberFormat('vi-VN').format(c.discount))} 
+                                  onChange={e => {
+                                    let val = e.target.value.replace(/\D/g, '');
+                                    if (c.discountType === 'percent') {
+                                      let n = Number(val);
+                                      if (n > 100) n = 100;
+                                      updateDiscount(c.product.id, isNaN(n) ? 0 : n);
+                                    } else {
+                                      updateDiscount(c.product.id, Number(val));
+                                    }
+                                  }} 
+                                  placeholder="0" 
+                                  className="h-8 border-0 shadow-none text-right focus-visible:ring-0 pr-1 rounded-none flex-1 min-w-0" 
+                                />
+                                <div className="flex shrink-0 border-l bg-muted/60">
+                                  <button 
+                                    title="Tính theo %"
+                                    className={`px-1.5 py-1 text-[11px] font-semibold transition-colors ${c.discountType === 'percent' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+                                    onClick={() => updateDiscountType(c.product.id, 'percent')}
+                                  >%</button>
+                                  <button 
+                                    title="Tính theo VNĐ"
+                                    className={`px-1.5 py-1 text-[11px] font-semibold transition-colors ${c.discountType !== 'percent' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+                                    onClick={() => updateDiscountType(c.product.id, 'amount')}
+                                  >đ</button>
+                                </div>
+                             </div>
                           </td>
-                          <td className="p-3 text-right font-bold text-emerald-600">
+                          <td className="p-3 text-right font-bold text-primary">
                             {(() => {
                               const priced = pricedItems[c.product.id];
                               if (priced) return formatMoney(priced.lineTotal);
-                              return formatMoney(Math.max(0, (c.product.retailPrice * (Number(c.quantity) || 0)) - (c.discount || 0)));
+                              return formatMoney(Math.max(0, (c.product.retailPrice * (Number(c.quantity) || 0)) - getAbsoluteDiscount(c)));
                             })()}
                           </td>
                           <td className="p-3 px-4 text-center">
@@ -454,15 +490,15 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
                         setShippingFee(isNaN(numericValue) ? 0 : numericValue);
                       }} 
                       placeholder="0" 
-                      className="h-8 text-sm text-right pr-6 bg-background shadow-sm font-semibold border-emerald-200 focus-visible:ring-emerald-500" 
+                      className="h-8 text-sm text-right pr-6 bg-background shadow-sm font-semibold border-primary/30 focus-visible:ring-primary" 
                     />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium text-emerald-600">đ</span>
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium text-primary">đ</span>
                   </div>
                 </div>
 
-                <div className="flex items-baseline gap-2 bg-emerald-50/50 p-1.5 px-3 rounded-lg border border-emerald-100">
-                  <span className="font-bold text-emerald-800 text-sm tracking-wide">Tổng đơn:</span>
-                  <span className="font-extrabold text-lg text-emerald-600 tracking-tight">{formatMoney(tempTotal)}</span>
+                <div className="flex items-baseline gap-2 bg-primary/5 p-1.5 px-3 rounded-lg border border-primary/20">
+                  <span className="font-bold text-primary text-sm tracking-wide">Tổng đơn:</span>
+                  <span className="font-extrabold text-lg text-primary tracking-tight">{formatMoney(tempTotal)}</span>
                 </div>
 
               </div>
@@ -476,14 +512,14 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
             <div className="text-muted-foreground hidden sm:flex items-center gap-2">
                 {!customerId ? <><Info size={16}/> Vui lòng chọn khách hàng để lưu đơn</> : 
                  cart.length === 0 ? <><Info size={16}/> Giỏ hàng trống</> : 
-                 <><CheckCircle2 size={16} className="text-emerald-500"/> Đã có thể xuất đơn</>
+                 <><CheckCircle2 size={16} className="text-primary"/> Đã có thể xuất đơn</>
                 }
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="h-10 px-6 font-medium shadow-sm w-full sm:w-auto">
                 Huỷ bỏ
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting || !customerId || cart.length === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[180px] shadow-md h-10 w-full sm:w-auto">
+              <Button onClick={handleSubmit} disabled={isSubmitting || !customerId || cart.length === 0} className="bg-primary hover:bg-primary/90 text-white min-w-[180px] shadow-md h-10 w-full sm:w-auto">
                 {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -519,8 +555,8 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
     <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
       <DialogContent className="glass sm:max-w-md text-center">
         <div className="flex flex-col items-center justify-center py-6">
-          <CheckCircle2 className="h-16 w-16 text-emerald-500 mb-4" />
-          <DialogTitle className="text-2xl font-bold text-emerald-600 mb-2">Chốt đơn thành công!</DialogTitle>
+          <CheckCircle2 className="h-16 w-16 text-primary mb-4" />
+          <DialogTitle className="text-2xl font-bold text-primary mb-2">Chốt đơn thành công!</DialogTitle>
           <DialogDescription className="text-base">
             Đơn hàng của bạn đã được ghi nhận vào hệ thống.
           </DialogDescription>
@@ -535,7 +571,7 @@ export default function OrderCreateSheet({ isOpen, onClose, onSuccess }: OrderCr
           }}>
             Tạo đơn mới
           </Button>
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setShowSuccessModal(false); onSuccess(); }}>
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => { setShowSuccessModal(false); onSuccess(); }}>
             Về danh sách
           </Button>
         </DialogFooter>

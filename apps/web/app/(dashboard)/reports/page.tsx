@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileDown, Printer, Calendar as CalendarIcon, Loader2, RefreshCw, BarChart3, TrendingDown, Truck, Activity, Target, Percent, PackageOpen, Award } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FileDown, Printer, Calendar as CalendarIcon, Loader2, RefreshCw, BarChart3, TrendingDown, Truck, Activity, Target, Percent, PackageOpen, Award, Filter } from 'lucide-react';
 import * as xlsx from 'xlsx';
 import { toast } from 'sonner';
 
@@ -41,6 +42,7 @@ export default function ReportsPage() {
   // Date State
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Data State
   const [reportData, setReportData] = useState<{
@@ -129,37 +131,64 @@ export default function ReportsPage() {
     const endStr = e.toISOString().slice(0,10);
     setStartDate(startStr);
     setEndDate(endStr);
+    setStatusFilter('ALL');
     fetchReport(startStr, endStr);
   };
+
+  const filteredOrders = reportData?.orders.filter(o => statusFilter === 'ALL' || o.deliveryStatus === statusFilter) || [];
+
+  const filteredSummary = reportData ? (statusFilter === 'ALL' ? reportData.summary : (() => {
+    let gross = 0; let net = 0; let ship = 0; let disc = 0; let completed = 0; let canceled = 0;
+    filteredOrders.forEach(o => {
+      const orderTotal = Number(o.totalAmount || 0);
+      const combinedDisc = Number(o.discountAmount || 0) + (o.items?.reduce((acc, i) => acc + Number(i.lineDiscount || 0), 0) || 0);
+      
+      if (o.deliveryStatus === 'COMPLETED') { completed++; net += orderTotal; }
+      if (['CANCELLED', 'RETURNED'].includes(o.deliveryStatus)) { canceled++; }
+      else { gross += orderTotal; ship += Number(o.shippingFee || 0); disc += combinedDisc; }
+    });
+    return {
+      totalOrders: filteredOrders.length,
+      completedOrdersCount: completed,
+      grossRevenue: gross,
+      netRevenue: net,
+      totalShippingFee: ship,
+      totalDiscount: disc,
+      aov: completed > 0 ? net / completed : 0,
+      cancelRate: filteredOrders.length > 0 ? (canceled / filteredOrders.length) * 100 : 0
+    };
+  })()) : null;
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
   const exportExcel = () => {
-    if (!reportData || !reportData.orders) return;
+    if (!reportData || !filteredSummary) return;
     
     // Sheet 1: Summary
     const summaryData = [
       { 'Mục': 'Khoảng thời gian', 'Giá trị': `${startDate || 'Tất cả'} đến ${endDate || 'Tất cả'}` },
-      { 'Mục': 'Tổng Doanh Thu Gộp (Gross)', 'Giá trị': reportData.summary.grossRevenue || 0 },
-      { 'Mục': 'Doanh Thu Thực Nhận (Net)', 'Giá trị': reportData.summary.netRevenue || 0 },
-      { 'Mục': 'Tổng Số Đơn Hàng', 'Giá trị': reportData.summary.totalOrders || 0 },
-      { 'Mục': 'Giá Trị Tiêu Dùng Trung Bình (AOV)', 'Giá trị': reportData.summary.aov || 0 },
-      { 'Mục': 'Tỷ Lệ Huỷ / Hoàn (%)', 'Giá trị': (reportData.summary.cancelRate || 0).toFixed(2) },
-      { 'Mục': 'Tổng Phí Vận Chuyển', 'Giá trị': reportData.summary.totalShippingFee },
-      { 'Mục': 'Tổng Chiết Khấu / Giảm giá', 'Giá trị': reportData.summary.totalDiscount },
+      { 'Mục': 'Lọc trạng thái', 'Giá trị': statusFilter === 'ALL' ? 'Tất cả trạng thái' : formatStatusText(statusFilter) },
+      { 'Mục': 'Tổng Doanh Thu Gộp (Gross)', 'Giá trị': Number(filteredSummary.grossRevenue || 0) },
+      { 'Mục': 'Doanh Thu Thực Nhận (Net)', 'Giá trị': Number(filteredSummary.netRevenue || 0) },
+      { 'Mục': 'Tổng Số Đơn Hàng', 'Giá trị': Number(filteredSummary.totalOrders || 0) },
+      { 'Mục': 'Giá Trị Tiêu Dùng Trung Bình (AOV)', 'Giá trị': Number(filteredSummary.aov || 0) },
+      { 'Mục': 'Tỷ Lệ Huỷ / Hoàn (%)', 'Giá trị': Number((filteredSummary.cancelRate || 0).toFixed(2)) },
+      { 'Mục': 'Tổng Phí Vận Chuyển', 'Giá trị': Number(filteredSummary.totalShippingFee || 0) },
+      { 'Mục': 'Tổng Chiết Khấu / Giảm giá', 'Giá trị': Number(filteredSummary.totalDiscount || 0) },
     ];
     
     const statusDataArray = Object.keys(reportData.overview?.statusBreakdown || {}).map(k => ({
       'Trạng thái': formatStatusText(k),
-      'Số lượng': reportData.overview.statusBreakdown[k].count,
-      'Doanh thu tương ứng': reportData.overview.statusBreakdown[k].revenue
+      'Số lượng': Number(reportData.overview.statusBreakdown[k].count || 0),
+      'Doanh thu tương ứng': Number(reportData.overview.statusBreakdown[k].revenue || 0)
     }));
 
     // Sheet 3: Details (Order Lines - Flattened by Products)
     const detailsData: any[] = [];
-    reportData.orders.forEach(o => {
+    filteredOrders.forEach(o => {
+      const phoneStr = o.snapshotCustomerPhone ? String(o.snapshotCustomerPhone) : '';
       if (!o.items || o.items.length === 0) {
         // Fallback for orders without items
         detailsData.push({
@@ -167,18 +196,19 @@ export default function ReportsPage() {
           'Ngày tạo': new Date(o.createdAt).toLocaleString('vi-VN'),
           'Trạng thái': formatStatusText(o.deliveryStatus),
           'Khách hàng': o.snapshotCustomerName,
-          'SĐT': o.snapshotCustomerPhone,
+          'SĐT': phoneStr,
           'Nhóm khách': o.customer?.group?.name || 'Khách lẻ',
           'SKU': '',
           'Tên SP': '',
+          'ĐVT': '',
           'SL': 0,
           'Đơn giá bán': 0,
           'Chiết khấu dòng': 0,
           'Thành Tiền Dòng': 0,
-          'Tổng tiền Hàng (Đơn)': o.subtotal,
-          'Chiết khấu Đơn': o.discountAmount,
-          'Phí Ship': o.shippingFee,
-          'Thực thu': o.totalAmount,
+          'Tổng tiền Hàng (Đơn)': Number(o.subtotal || 0),
+          'Chiết khấu Đơn': Number(o.discountAmount || 0),
+          'Phí Ship': Number(o.shippingFee || 0),
+          'Thực thu': Number(o.totalAmount || 0),
           'Thu ngân': o.createdBy?.fullName || '',
           'Ghi chú': o.notes || ''
         });
@@ -189,18 +219,19 @@ export default function ReportsPage() {
             'Ngày tạo': new Date(o.createdAt).toLocaleString('vi-VN'),
             'Trạng thái': formatStatusText(o.deliveryStatus),
             'Khách hàng': o.snapshotCustomerName,
-            'SĐT': o.snapshotCustomerPhone,
+            'SĐT': phoneStr,
             'Nhóm khách': o.customer?.group?.name || 'Khách lẻ',
             'SKU': i.snapshotProductSku,
             'Tên SP': i.snapshotProductName,
-            'SL': i.quantity,
-            'Đơn giá bán': i.snapshotUnitPrice,
-            'Chiết khấu dòng': i.lineDiscount,
-            'Thành Tiền Dòng': i.lineTotal,
-            'Tổng tiền Hàng (Đơn)': o.subtotal,
-            'Chiết khấu Đơn': o.discountAmount,
-            'Phí Ship': o.shippingFee,
-            'Thực thu': o.totalAmount,
+            'ĐVT': i.snapshotProductUnit || '',
+            'SL': Number(i.quantity || 0),
+            'Đơn giá bán': Number(i.snapshotUnitPrice || 0),
+            'Chiết khấu dòng': Number(i.lineDiscount || 0),
+            'Thành Tiền Dòng': Number(i.lineTotal || 0),
+            'Tổng tiền Hàng (Đơn)': Number(o.subtotal || 0),
+            'Chiết khấu Đơn': Number(o.discountAmount || 0),
+            'Phí Ship': Number(o.shippingFee || 0),
+            'Thực thu': Number(o.totalAmount || 0),
             'Thu ngân': o.createdBy?.fullName || '',
             'Ghi chú': o.notes || ''
           });
@@ -238,10 +269,8 @@ export default function ReportsPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <BarChart3 className="h-8 w-8 text-primary shadow-sm rounded-lg border bg-background p-1.5" />
               Báo cáo Quản trị Doanh thu
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Hệ thống phân tích B2B (Dữ liệu giao hàng, tỷ lệ chuyển đổi, danh sách chi tiết).</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={exportExcel} disabled={isLoading || !reportData} className="shadow-sm hover:bg-emerald-50 hover:text-emerald-700 bg-background hover:border-emerald-200 transition-colors cursor-pointer">
@@ -273,9 +302,27 @@ export default function ReportsPage() {
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-4">
+            <div className="w-[180px]">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full !h-10 bg-background border-input">
+                  <SelectValue placeholder="Chọn trạng thái">
+                    {statusFilter === 'ALL' ? 'Tất cả trạng thái' : formatStatusText(statusFilter)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="PENDING">Chờ xác nhận</SelectItem>
+                  <SelectItem value="PROCESSING">Đang xử lý</SelectItem>
+                  <SelectItem value="SHIPPING">Đang giao</SelectItem>
+                  <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                  <SelectItem value="RETURNED">Hoàn trả</SelectItem>
+                  <SelectItem value="CANCELLED">Đã Huỷ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button variant="secondary" onClick={() => fetchReport()} disabled={isLoading} className="h-10 px-5 shadow-sm min-w-[120px]">
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : <><RefreshCw className="h-4 w-4 mr-2" /> Trích xuất</>}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : <><Filter className="h-4 w-4 mr-2" /> Lọc</>}
             </Button>
           </div>
         </CardContent>
@@ -293,13 +340,13 @@ export default function ReportsPage() {
       </Card>
 
       {/* KPI SUMMARY CARDS */}
-      {reportData && (
+      {filteredSummary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
           <Card className="shadow-sm border-muted/60 relative overflow-hidden">
              <div className="absolute top-0 right-0 p-3 opacity-10"><Activity className="h-12 w-12" /></div>
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Doanh Thu Gộp (Gross)</span>
-              <span className="text-xl font-bold text-foreground">{formatMoney(reportData.summary.grossRevenue || 0)}</span>
+              <span className="text-xl font-bold text-foreground">{formatMoney(filteredSummary.grossRevenue || 0)}</span>
             </CardContent>
           </Card>
           
@@ -307,7 +354,7 @@ export default function ReportsPage() {
              <div className="absolute top-0 right-0 p-3 opacity-10 text-primary"><Target className="h-12 w-12" /></div>
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-1 block">Thực Nhận (Net - Đã chốt)</span>
-              <span className="text-xl font-black text-primary">{formatMoney(reportData.summary.netRevenue || 0)}</span>
+              <span className="text-xl font-black text-primary">{formatMoney(filteredSummary.netRevenue || 0)}</span>
             </CardContent>
           </Card>
 
@@ -315,7 +362,7 @@ export default function ReportsPage() {
              <div className="absolute top-0 right-0 p-3 opacity-10"><Truck className="h-12 w-12" /></div>
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Tổng Thu Phí Ship</span>
-              <span className="text-xl font-bold text-foreground">+{formatMoney(reportData.summary.totalShippingFee)}</span>
+              <span className="text-xl font-bold text-foreground">+{formatMoney(filteredSummary.totalShippingFee)}</span>
             </CardContent>
           </Card>
 
@@ -323,7 +370,7 @@ export default function ReportsPage() {
              <div className="absolute top-0 right-0 p-3 opacity-10 text-destructive"><TrendingDown className="h-12 w-12" /></div>
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Tổng Chiết Khấu</span>
-              <span className="text-xl font-bold text-destructive">-{formatMoney(reportData.summary.totalDiscount)}</span>
+              <span className="text-xl font-bold text-destructive">-{formatMoney(filteredSummary.totalDiscount)}</span>
             </CardContent>
           </Card>
 
@@ -332,7 +379,7 @@ export default function ReportsPage() {
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Đơn Hàng Tổng Kho</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-foreground">{reportData.summary.totalOrders}</span>
+                <span className="text-xl font-bold text-foreground">{filteredSummary.totalOrders}</span>
               </div>
             </CardContent>
           </Card>
@@ -342,7 +389,7 @@ export default function ReportsPage() {
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider mb-1 block">Tỷ Lệ Chốt Đơn (Hoàn thành)</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-emerald-600">{reportData.summary.completedOrdersCount}</span>
+                <span className="text-xl font-bold text-emerald-600">{filteredSummary.completedOrdersCount}</span>
                 <span className="text-sm font-medium text-muted-foreground">đơn</span>
               </div>
             </CardContent>
@@ -351,7 +398,7 @@ export default function ReportsPage() {
            <Card className="shadow-sm border-muted/60">
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">AOV (Trung bình / Đơn)</span>
-              <span className="text-xl font-bold text-foreground">{formatMoney(reportData.summary.aov || 0)}</span>
+              <span className="text-xl font-bold text-foreground">{formatMoney(filteredSummary.aov || 0)}</span>
             </CardContent>
           </Card>
 
@@ -360,7 +407,7 @@ export default function ReportsPage() {
             <CardContent className="p-4">
               <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Tỷ Lệ Huỷ / Hoàn trả</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-destructive">{(reportData.summary.cancelRate || 0).toFixed(1)}%</span>
+                <span className="text-xl font-bold text-destructive">{(filteredSummary.cancelRate || 0).toFixed(1)}%</span>
               </div>
             </CardContent>
           </Card>
@@ -424,8 +471,11 @@ export default function ReportsPage() {
         <Card className="glass shadow-sm border-muted/50 overflow-hidden print:hidden">
           <CardHeader className="bg-muted/10 border-b py-4">
              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Danh sách Đơn hàng (Order Details)</CardTitle>
-                <Badge variant="secondary" className="font-mono">{reportData.orders.length} Records</Badge>
+                <CardTitle className="text-base font-semibold">
+                  Danh sách Đơn hàng (Order Details)
+                  {statusFilter !== 'ALL' && <Badge variant="outline" className="ml-3 bg-muted font-normal">{formatStatusText(statusFilter)}</Badge>}
+                </CardTitle>
+                <Badge variant="secondary" className="font-mono">{filteredOrders.length} Records</Badge>
              </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -441,12 +491,12 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reportData.orders.length === 0 ? (
+                  {filteredOrders.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">Không tìm thấy đơn hàng nào trong thời gian này.</TableCell>
                     </TableRow>
                   ) : (
-                    reportData.orders.map(o => (
+                    filteredOrders.map(o => (
                       <TableRow key={o.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell className="px-5 align-top pt-4">
                           <div className="font-bold text-foreground text-[13px]">{o.orderNumber}</div>
@@ -540,42 +590,45 @@ export default function ReportsPage() {
               <h1 className="text-lg font-black uppercase tracking-widest text-black mb-0.5">Báo Cáo Quản Trị</h1>
               <p className="text-[12px] font-semibold">Doanh Thu & Giao Nhận</p>
               <p className="text-[9px] font-medium mt-1 uppercase text-gray-700">KỲ BÁO CÁO: {startDate ? new Date(startDate).toLocaleDateString('vi-VN') : 'TẤT CẢ'} - {endDate ? new Date(endDate).toLocaleDateString('vi-VN') : 'TẤT CẢ'}</p>
+              {statusFilter !== 'ALL' && <p className="text-[9px] font-bold mt-0.5 uppercase text-black">TRẠNG THÁI: {formatStatusText(statusFilter)}</p>}
               <p className="text-[8px] mt-0.5">Ngày trích xuất: {new Date().toLocaleString('vi-VN')}</p>
             </div>
           </div>
 
           {/* PART 1: KPI SUMMARY */}
+          {filteredSummary && (
           <div className="mb-5">
-            <h3 className="font-bold text-[12px] mb-1.5 uppercase border-l-4 border-black pl-2">I. Tổng quan Chỉ số KPI</h3>
+            <h3 className="font-bold text-[12px] mb-1.5 uppercase border-l-4 border-black pl-2">I. Tổng quan Chỉ số KPI {statusFilter !== 'ALL' && `(Đã lọc theo: ${formatStatusText(statusFilter)})`}</h3>
             <table className="text-[11px]">
               <tbody>
                 <tr>
                   <td className="font-bold bg-gray-100" width="25%">Doanh Thu Gộp (Gross)</td>
-                  <td className="font-black text-[13px]" width="25%">{formatMoney(reportData.summary.grossRevenue || 0)}</td>
+                  <td className="font-black text-[13px]" width="25%">{formatMoney(filteredSummary.grossRevenue || 0)}</td>
                   <td className="font-bold bg-gray-100" width="25%">Doanh Thu Thực Nhận (Net)</td>
-                  <td className="font-black text-[13px]" width="25%">{formatMoney(reportData.summary.netRevenue || 0)}</td>
+                  <td className="font-black text-[13px]" width="25%">{formatMoney(filteredSummary.netRevenue || 0)}</td>
                 </tr>
                 <tr>
                   <td className="font-semibold bg-gray-100">Tổng Số Đơn Khởi Tạo</td>
-                  <td className="font-bold">{reportData.summary.totalOrders} đơn</td>
-                  <td className="font-semibold bg-gray-100">Số Đơn Hoàn Thành (Thành công)</td>
-                  <td className="font-bold">{reportData.summary.completedOrdersCount} đơn</td>
+                  <td className="font-bold">{filteredSummary.totalOrders} đơn</td>
+                  <td className="font-semibold bg-gray-100">Số Đơn Hoạt Động Kín</td>
+                  <td className="font-bold">{filteredSummary.completedOrdersCount} đơn</td>
                 </tr>
                 <tr>
                   <td className="font-semibold bg-gray-100">AOV (Trung bình / Đơn)</td>
-                  <td className="font-bold">{formatMoney(reportData.summary.aov || 0)}</td>
+                  <td className="font-bold">{formatMoney(filteredSummary.aov || 0)}</td>
                   <td className="font-semibold bg-gray-100">Tỷ lệ Huỷ / Hoàn</td>
-                  <td className="font-bold">{(reportData.summary.cancelRate || 0).toFixed(2)}%</td>
+                  <td className="font-bold">{(filteredSummary.cancelRate || 0).toFixed(2)}%</td>
                 </tr>
                 <tr>
                   <td className="font-semibold bg-gray-100">Tổng Phí Thu Hộ (Ship)</td>
-                  <td className="font-bold">{formatMoney(reportData.summary.totalShippingFee)}</td>
+                  <td className="font-bold">{formatMoney(filteredSummary.totalShippingFee)}</td>
                   <td className="font-semibold bg-gray-100">Tổng Chiết Khấu / Giảm giá</td>
-                  <td className="font-bold">{formatMoney(reportData.summary.totalDiscount)}</td>
+                  <td className="font-bold">{formatMoney(filteredSummary.totalDiscount)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          )}
 
           {/* PART 2: ORDER OVERVIEW */}
           <div className="mb-5 flex gap-6">
@@ -643,7 +696,8 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.orders.map((o, idx) => (
+                  {filteredOrders.length === 0 && <tr><td colSpan={6} className="text-center py-2">Không có đơn hàng nào.</td></tr>}
+                  {filteredOrders.map((o, idx) => (
                     <tr key={o.id}>
                       <td className="text-center font-bold">{idx + 1}</td>
                       <td>

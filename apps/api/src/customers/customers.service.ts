@@ -15,6 +15,7 @@ export class CustomersService {
       where.OR = [
         { fullName: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
+        { code: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -88,7 +89,26 @@ export class CustomersService {
 
   async create(data: CreateCustomerDto) {
     try {
-      return await this.prisma.customer.create({ data });
+      const phoneToSave = data.phone && data.phone.trim() !== '' ? data.phone.trim() : null;
+      let targetCode = data.code;
+      
+      if (!targetCode) {
+        let isUnique = false;
+        while (!isUnique) {
+          const rnd = Math.floor(100000 + Math.random() * 900000).toString();
+          targetCode = `KH${rnd}`;
+          const existing = await this.prisma.customer.findUnique({ where: { code: targetCode } });
+          if (!existing) isUnique = true;
+        }
+      }
+
+      return await this.prisma.customer.create({
+        data: {
+          ...data,
+          phone: phoneToSave,
+          code: targetCode!,
+        }
+      });
     } catch (e: any) {
       if (e.code === 'P2002') {
         throw new BadRequestException('Số điện thoại này đã được đăng ký.');
@@ -134,9 +154,14 @@ export class CustomersService {
     if (!existing) throw new NotFoundException('Không tìm thấy khách hàng');
 
     try {
+      const phoneToSave = data.phone && data.phone.trim() !== '' ? data.phone.trim() : (data.phone === '' ? null : undefined);
+      
       return await this.prisma.customer.update({
         where: { id },
-        data,
+        data: {
+          ...data,
+          ...(phoneToSave !== undefined && { phone: phoneToSave })
+        },
       });
     } catch (e: any) {
       if (e.code === 'P2002') {

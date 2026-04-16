@@ -20,10 +20,15 @@ export class CreateProductDto {
   @IsNotEmpty()
   name: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  sku: string;
+  categoryId: string;
 
   @ApiProperty()
   @IsString()

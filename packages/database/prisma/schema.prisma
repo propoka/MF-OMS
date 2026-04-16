@@ -94,7 +94,8 @@ model CustomerGroup {
 // ============================================================
 model Customer {
   id              String    @id @default(cuid())
-  phone           String    @unique  // Primary key logic - chống trùng
+  code            String?   @unique @default(cuid()) // Mã Khách Hàng (Tự động chuyển từ cuid sang KH-xxx cho KH cũ)
+  phone           String?   @unique  // SĐT không còn bắt buộc
   fullName        String
   groupId         String
   // Địa chỉ (2 cấp mới 2025: Tỉnh → Phường/Xã)
@@ -137,12 +138,30 @@ model CustomerSpecialPrice {
 }
 
 // ============================================================
+// MODEL: ProductCategory (Danh mục Sản phẩm)
+// ============================================================
+model ProductCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique  // Tiền tố cấu hình vòng lặp SKU (VD: XUANLOC, HANGTUOI)
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@map("product_categories")
+}
+
+// ============================================================
 // MODEL: Product (Sản phẩm - Master Data)
 // ============================================================
 model Product {
   id          String   @id @default(cuid())
   name        String
   sku         String   @unique
+  categoryId  String?
   unit        String   // Hộp, Thùng, Gói, Cái...
   retailPrice Decimal  @db.Decimal(15, 0)  // Giá bán lẻ (mặc định)
   costPrice   Decimal? @db.Decimal(15, 0)  // Giá vốn (optional)
@@ -155,6 +174,8 @@ model Product {
   groupPrices    ProductGroupPrice[]
   specialPrices  CustomerSpecialPrice[]
   orderItems     OrderItem[]
+
+  category       ProductCategory? @relation(fields: [categoryId], references: [id])
 
   @@map("products")
 }
@@ -188,8 +209,8 @@ model Order {
   orderNumber      String              @unique  // AUTO: ORD-YYYYMMDD-XXXX
   customerId       String
   // Snapshot tên khách tại thời điểm tạo đơn
-  snapshotCustomerName String
-  snapshotCustomerPhone String
+  snapshotCustomerName  String
+  snapshotCustomerPhone String?
   createdById      String
 
   deliveryStatus   OrderDeliveryStatus @default(PENDING)

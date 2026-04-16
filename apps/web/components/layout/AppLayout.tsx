@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import AppSidebar from './app-sidebar';
 import Header from './header';
 import { Loader2 } from 'lucide-react';
+import GlobalOrderFab from '../orders/GlobalOrderFab';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isLoading, isAuthenticated } = useAuth();
@@ -43,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </SidebarInset>
+      <GlobalOrderFab />
     </SidebarProvider>
   );
 }

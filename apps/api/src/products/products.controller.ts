@@ -35,11 +35,26 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
+  @Get('next-sku/:categoryId')
+  @ApiOperation({ summary: 'Lấy Mã SKU gợi ý tiếp theo cho một Danh mục' })
+  async getNextSku(@Param('categoryId') categoryId: string) {
+    const sku = await this.productsService.getNextSku(categoryId);
+    return { sku };
+  }
+
   @Post()
   @AuditLog('CREATE', 'Product')
   @ApiOperation({ summary: 'Tạo sản phẩm & set GroupPrice' })
   create(@Body() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
+  }
+
+  @Post('import')
+  @Roles(Role.ADMIN)
+  @AuditLog('CREATE', 'Product')
+  @ApiOperation({ summary: 'Import danh sách sản phẩm từ Excel (JSON payload)' })
+  import(@Body() products: any[]) {
+    return this.productsService.import(products);
   }
 
   @Patch(':id')

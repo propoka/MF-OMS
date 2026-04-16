@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { crmApi, Customer } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import CustomerFormModal from '@/components/customers/CustomerFormModal';
-import ImportCustomerModal from '@/components/customers/ImportCustomerModal';
 import Link from 'next/link';
 import { 
   Table, 
@@ -27,7 +26,6 @@ export default function CustomersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -73,14 +71,6 @@ export default function CustomersPage() {
         </div>
         <div className="flex items-center gap-3">
           <Button 
-            variant="outline" 
-            onClick={() => setIsImportModalOpen(true)}
-            className="bg-background shadow-sm hover:bg-muted font-medium transition-all duration-200 border-muted-foreground/30"
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" />
-            Import Excel
-          </Button>
-          <Button 
             onClick={() => setIsModalOpen(true)}
             className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5"
           >
@@ -96,7 +86,7 @@ export default function CustomersPage() {
             <div className="relative flex-1 max-w-md shadow-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Tìm theo tên hoặc số điện thoại..."
+                placeholder="Tìm theo Tên, Mã KH hoặc SĐT..."
                 className="pl-9 border-muted-foreground/30 bg-background h-10 transition-colors focus-visible:border-primary"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -139,12 +129,21 @@ export default function CustomersPage() {
               customers.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="px-6 py-4">
-                    <div className="font-medium text-foreground">{c.fullName}</div>
-                    <div className="text-xs text-muted-foreground mt-1 truncate max-w-[250px]" title={c.addressDetail || 'Chưa cập nhật địa chỉ'}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-foreground">{c.fullName}</span>
+                      {c.code && (
+                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-mono bg-muted/50 text-muted-foreground">
+                          {c.code}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate max-w-[250px]" title={c.addressDetail || 'Chưa cập nhật địa chỉ'}>
                       {c.addressDetail || 'Chưa có địa chỉ'}
                     </div>
                   </TableCell>
-                  <TableCell className="px-6 font-medium text-muted-foreground">{c.phone}</TableCell>
+                  <TableCell className="px-6 font-medium text-muted-foreground">
+                    {c.phone ? c.phone : <span className="italic text-muted-foreground/50 text-sm">Chưa có SĐT</span>}
+                  </TableCell>
                   <TableCell className="px-6">
                     {c.group ? (
                       <Badge variant="secondary" className="font-medium">
@@ -205,14 +204,6 @@ export default function CustomersPage() {
         onClose={() => setIsModalOpen(false)} 
         onSuccess={() => {
           setIsModalOpen(false);
-          fetchCustomers();
-        }}
-      />
-      <ImportCustomerModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onSuccess={() => {
-          setIsImportModalOpen(false);
           fetchCustomers();
         }}
       />

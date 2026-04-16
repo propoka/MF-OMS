@@ -199,7 +199,7 @@ export class DashboardService {
       'CANCELLED': { count: 0, revenue: 0 },
     };
 
-    const customerMap: Record<string, { name: string, phone: string, revenue: number, orderCount: number }> = {};
+    const customerMap: Record<string, { name: string, phone: string | null, revenue: number, orderCount: number }> = {};
     const productMap: Record<string, { name: string, sku: string, revenue: number, sold: number }> = {};
 
     orders.forEach(o => {

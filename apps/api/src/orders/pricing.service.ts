@@ -67,8 +67,10 @@ export class PricingEngineService {
         // Không có giá đặc biệt, xét giá Nhóm
         if (customer.group) {
           if (customer.group.priceType === 'FIXED') {
-            const groupPriceDoc = product.groupPrices[0]; // because we filtered by customer.groupId
-            if (groupPriceDoc && groupPriceDoc.fixedPrice) {
+            const groupPriceDoc = product.groupPrices?.find(
+              (gp) => gp.groupId === customer.groupId,
+            );
+            if (groupPriceDoc && groupPriceDoc.fixedPrice != null) {
               finalPrice = groupPriceDoc.fixedPrice;
               source = 'GROUP';
               note = `Áp dụng bảng giá tĩnh nhóm: ${customer.group.name}`;

@@ -52,7 +52,7 @@ function EditableCell({
 
   const handleBlur = async () => {
     setIsEditing(false);
-    const num = Number(val);
+    const num = Number(val.replace(/\D/g, ''));
     if (num !== value && !isNaN(num)) {
       setIsLoading(true);
       await onSave(num);
@@ -68,26 +68,26 @@ function EditableCell({
     return (
       <Input
         autoFocus
-        className="h-7 w-24 text-right px-1 py-0 text-sm"
-        value={val}
-        onChange={(e) => setVal(e.target.value.replace(/[^0-9]/g, ''))}
+        inputMode="numeric"
+        className="h-7 w-24 text-right px-1 py-0 text-sm font-medium text-emerald-700"
+        value={val ? new Intl.NumberFormat('vi-VN').format(Number(val.toString().replace(/\D/g, ''))) : ''}
+        onChange={(e) => setVal(e.target.value.replace(/\D/g, ''))}
         onBlur={handleBlur}
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleBlur();
           if (e.key === 'Escape') { setIsEditing(false); setVal(value === 0 ? '' : value?.toString() || ''); }
         }}
-        placeholder={fallbackValue ? fallbackValue.toString() : ''}
+        placeholder={fallbackValue ? new Intl.NumberFormat('vi-VN').format(fallbackValue) : '0'}
       />
     );
   }
 
-  const displayValue = value === 0 && fallbackValue ? fallbackValue : value;
+  const displayValue = value;
 
   return (
     <div 
-      className={`text-right w-full cursor-pointer hover:bg-muted/50 p-1 min-h-6 rounded ${value === 0 ? 'text-muted-foreground opacity-40 italic' : 'font-medium'}`}
+      className={`text-right w-full cursor-pointer hover:bg-muted/50 p-1 min-h-6 rounded font-medium`}
       onClick={() => setIsEditing(true)}
-      title={value === 0 && fallbackValue ? 'Giá đang áp dụng (Mặc định)' : ''}
     >
       {new Intl.NumberFormat('vi-VN').format(displayValue)}
     </div>
@@ -109,7 +109,17 @@ export default function ProductsPage() {
       const token = getToken();
       if (!token) return;
       const res = await crmApi.getGroups(token);
-      setGroups(res.filter(g => !g.isDefault));
+      const filtered = res.filter(g => !g.isDefault);
+      
+      filtered.sort((a, b) => {
+        const aIsSi = a.name.toLowerCase().includes('sỉ');
+        const bIsSi = b.name.toLowerCase().includes('sỉ');
+        if (aIsSi && !bIsSi) return -1;
+        if (!aIsSi && bIsSi) return 1;
+        return a.createdAt > b.createdAt ? 1 : -1; // keep chronological for others
+      });
+      
+      setGroups(filtered);
     } catch (err) {}
   }, [getToken]);
 
@@ -172,7 +182,7 @@ export default function ProductsPage() {
   const handleSaveGroupPrice = async (product: Product, groupId: string, newPrice: number) => {
     const existingGroupPrices = product.groupPrices || [];
     const updated = existingGroupPrices.filter(gp => gp.groupId !== groupId);
-    if (newPrice > 0) {
+    if (newPrice >= 0) {
       updated.push({ groupId, fixedPrice: newPrice });
     }
     await productsApi.updateProduct(getToken()!, product.id, { groupPrices: updated });
@@ -198,7 +208,7 @@ export default function ProductsPage() {
 
       <Card className="glass shadow-sm border-muted/50 overflow-hidden flex-1 flex flex-col">
         <CardContent className="p-0 flex-1 flex flex-col">
-          <div className="p-6 border-b border-muted/30 flex items-center bg-muted/10 shrink-0">
+          <div className="p-6 border-b border-muted/30 flex items-center justify-between bg-muted/10 shrink-0">
             <div className="relative flex-1 max-w-md shadow-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -207,6 +217,10 @@ export default function ProductsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+            </div>
+
+            <div className="text-sm font-medium text-muted-foreground mr-2">
+              Tổng số lượng sản phẩm: <span className="text-primary font-bold ml-1">{total}</span>
             </div>
           </div>
           
@@ -259,10 +273,10 @@ export default function ProductsPage() {
                         <DropdownMenuTrigger render={
                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-muted"><MoreHorizontal className="h-4 w-4" /></Button>
                         } />
-                        <DropdownMenuContent align="start" className="shadow-lg">
-                          <DropdownMenuItem onClick={() => handleEdit(p)} className="font-medium cursor-pointer"><Edit className="mr-2 h-4 w-4" /> Sửa thông tin</DropdownMenuItem>
+                        <DropdownMenuContent align="start" className="shadow-lg w-48">
+                          <DropdownMenuItem onClick={() => handleEdit(p)} className="font-medium cursor-pointer whitespace-nowrap"><Edit className="mr-2 h-4 w-4" /> Sửa thông tin</DropdownMenuItem>
                           {user?.role === 'ADMIN' && (
-                            <DropdownMenuItem onClick={() => handleDelete(p.id)} className="text-destructive font-medium cursor-pointer focus:text-destructive focus:bg-destructive/10"><Trash2 className="mr-2 h-4 w-4" /> Xoá sản phẩm</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(p.id)} className="text-destructive font-medium cursor-pointer focus:text-destructive focus:bg-destructive/10 whitespace-nowrap"><Trash2 className="mr-2 h-4 w-4" /> Xoá sản phẩm</DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -286,7 +300,6 @@ export default function ProductsPage() {
                           <EditableCell 
                             value={currentVal} 
                             onSave={(v) => handleSaveGroupPrice(p, g.id, v)} 
-                            fallbackValue={Number(p.retailPrice)}
                           />
                         </TableCell>
                       );

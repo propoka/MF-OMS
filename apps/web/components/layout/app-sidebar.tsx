@@ -33,6 +33,7 @@ const navigation = [
   { name: 'Khách hàng', href: '/customers', icon: Icons.user },
   { name: 'Nhóm khách', href: '/customer-groups', icon: Icons.teams },
   { name: 'Sản phẩm', href: '/products', icon: Icons.product },
+  { name: 'Danh mục sản phẩm', href: '/products/categories', icon: Icons.kanban },
   { name: 'Đơn hàng', href: '/orders', icon: Icons.billing },
   { name: 'Báo cáo', href: '/reports', icon: Icons.kanban },
   { name: 'Cài đặt hệ thống', href: '/settings', icon: Icons.settings },
@@ -51,6 +52,7 @@ export default function AppSidebar() {
             alt="Mountain Farmers Logo" 
             width={120} 
             height={50} 
+            style={{ width: '120px', height: 'auto' }}
             className="object-contain group-data-[collapsible=icon]:hidden"
             priority
             unoptimized

@@ -72,6 +72,14 @@ export class OrdersController {
     return this.ordersService.create(req.user.id, createOrderDto);
   }
 
+  @Post('import')
+  @Roles(Role.ADMIN)
+  @AuditLog('CREATE', 'Order')
+  @ApiOperation({ summary: 'Import danh sách đơn hàng từ Excel' })
+  import(@Request() req: any, @Body() orders: any[]) {
+    return this.ordersService.import(req.user.id, orders);
+  }
+
   @Patch(':id')
   @AuditLog('UPDATE', 'Order')
   @ApiOperation({ summary: 'Chỉnh sửa toàn bộ đơn hàng (Thay đổi kho)' })

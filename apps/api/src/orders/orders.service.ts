@@ -249,4 +249,70 @@ export class OrdersService {
       return tx.order.delete({ where: { id } });
     });
   }
+
+  async import(userId: string, orders: any[]) {
+    let successCount = 0;
+    
+    // Find default group
+    let defaultGroup = await this.prisma.customerGroup.findFirst({ where: { isDefault: true } });
+    if (!defaultGroup) {
+      defaultGroup = await this.prisma.customerGroup.findFirst();
+    }
+
+    for (const o of orders) {
+      try {
+        // Find or create customer
+        let customerId = '';
+        if (o.customerPhone) {
+          const existingCust = await this.prisma.customer.findUnique({ where: { phone: String(o.customerPhone).trim() } });
+          if (existingCust) {
+            customerId = existingCust.id;
+          }
+        }
+        
+        if (!customerId) {
+          const newCust = await this.prisma.customer.create({
+            data: {
+              fullName: o.customerName || 'Khách vãng lai',
+              phone: o.customerPhone ? String(o.customerPhone).trim() : null,
+              groupId: defaultGroup?.id as string,
+            }
+          });
+          customerId = newCust.id;
+        }
+
+        // Parse items
+        const skus = o.productSkus.split(',').map((s: string) => s.trim());
+        const qtys = o.quantities.split(',').map((q: string) => parseFloat(q.trim()));
+        
+        const items = [];
+        for (let i = 0; i < skus.length; i++) {
+          const sku = skus[i];
+          const qty = qtys[i];
+          if (!sku || isNaN(qty)) continue;
+          
+          const product = await this.prisma.product.findUnique({ where: { sku } });
+          if (product) {
+            items.push({ productId: product.id, quantity: qty });
+          }
+        }
+
+        if (items.length > 0) {
+          await this.create(userId, {
+            customerId,
+            items,
+            shippingFee: Number(o.shippingFee) || 0,
+            discountAmount: Number(o.discountAmount) || 0,
+            notes: o.notes || 'Imported from Excel',
+          });
+          successCount++;
+        }
+      } catch (e: any) {
+        // Skip invalid order row
+      }
+    }
+    
+    return { successCount, totalTried: orders.length };
+  }
 }
+

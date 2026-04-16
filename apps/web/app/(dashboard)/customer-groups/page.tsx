@@ -80,7 +80,6 @@ export default function CustomerGroupsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Nhóm Khách hàng</h1>
-          <p className="text-sm text-muted-foreground mt-1">Phân loại khách hàng và thiết lập quy tắc giá bán sỉ.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button 
@@ -101,7 +100,6 @@ export default function CustomerGroupsPage() {
             <TableRow>
               <TableHead className="w-[250px] px-6 text-foreground font-semibold">Tên Nhóm</TableHead>
               <TableHead className="px-6 text-foreground font-semibold">Mô tả</TableHead>
-              <TableHead className="px-6 text-foreground font-semibold">Quy tắc Giá</TableHead>
               <TableHead className="text-center px-6 text-foreground font-semibold">Số lượng KH</TableHead>
               <TableHead className="text-right px-6 text-foreground font-semibold">Thao tác</TableHead>
             </TableRow>
@@ -112,14 +110,13 @@ export default function CustomerGroupsPage() {
                 <TableRow key={i} className="animate-pulse">
                   <TableCell className="px-6 py-4"><div className="h-4 bg-muted rounded w-32"></div></TableCell>
                   <TableCell className="px-6"><div className="h-4 bg-muted rounded w-48"></div></TableCell>
-                  <TableCell className="px-6"><div className="h-4 bg-muted rounded w-24"></div></TableCell>
                   <TableCell className="px-6"><div className="h-4 bg-muted rounded w-12 mx-auto"></div></TableCell>
                   <TableCell className="px-6"><div className="h-8 bg-muted rounded w-8 ml-auto"></div></TableCell>
                 </TableRow>
               ))
             ) : groups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-48 text-center">
+                <TableCell colSpan={4} className="h-48 text-center">
                   <div className="flex flex-col items-center justify-center text-muted-foreground">
                     <Inbox className="h-10 w-10 mb-4 opacity-50" />
                     <p>Chưa có nhóm khách hàng nào.</p>
@@ -136,11 +133,6 @@ export default function CustomerGroupsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="px-6 text-muted-foreground">{group.description || <span className="italic text-muted-foreground/60">Chưa có mô tả</span>}</TableCell>
-                  <TableCell className="px-6 font-medium text-foreground">
-                    {group.priceType === 'PERCENTAGE' 
-                      ? `Giảm ${group.discountPercent}% lẻ` 
-                      : 'Bảng giá cố định'}
-                  </TableCell>
                   <TableCell className="px-6 text-center">
                     <Badge variant="outline" className="font-semibold">
                       <Users className="h-3 w-3 mr-1" />

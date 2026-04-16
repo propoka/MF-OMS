@@ -197,7 +197,7 @@ export default function CustomerFormModal({ isOpen, onClose, onSuccess, customer
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !phone || !groupId) return;
+    if (!fullName || !groupId) return;
     
     setError('');
     setIsSubmitting(true);
@@ -208,7 +208,7 @@ export default function CustomerFormModal({ isOpen, onClose, onSuccess, customer
 
       const payload = {
         fullName,
-        phone,
+        ...(phone.trim() !== '' ? { phone: phone.trim() } : {}),
         groupId,
         provinceCode,
         provinceName: selectedProvinceName || undefined,
@@ -279,7 +279,7 @@ export default function CustomerFormModal({ isOpen, onClose, onSuccess, customer
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Số điện thoại <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="phone">Số điện thoại</Label>
                   <Input 
                     id="phone"
                     type="tel" 
@@ -287,7 +287,6 @@ export default function CustomerFormModal({ isOpen, onClose, onSuccess, customer
                     className="h-10 border-muted-foreground/20 shadow-sm"
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    required 
                   />
                 </div>
               </div>
@@ -355,7 +354,7 @@ export default function CustomerFormModal({ isOpen, onClose, onSuccess, customer
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Huỷ bỏ
             </Button>
-            <Button type="submit" disabled={isSubmitting || !fullName || !phone || !groupId} className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px]">
+            <Button type="submit" disabled={isSubmitting || !fullName || !groupId} className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px]">
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

@@ -4,11 +4,16 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 const phoneRegex = /(84|0[3|5|7|8|9])+([0-9]{8})\b/;
 
 export class CreateCustomerDto {
-  @ApiProperty({ example: '0987654321' })
+  @ApiPropertyOptional({ example: 'KH129381' })
   @IsString()
-  @IsNotEmpty({ message: 'Số điện thoại không được để trống' })
+  @IsOptional()
+  code?: string;
+
+  @ApiPropertyOptional({ example: '0987654321' })
+  @IsString()
+  @IsOptional()
   @Matches(phoneRegex, { message: 'Số điện thoại không hợp lệ (định dạng VN)' })
-  phone: string;
+  phone?: string;
 
   @ApiProperty({ example: 'Nguyễn Văn A' })
   @IsString()

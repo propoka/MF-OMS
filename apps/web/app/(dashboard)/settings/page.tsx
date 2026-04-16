@@ -30,12 +30,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AdvancedTab } from './AdvancedTab';
 
 export default function SettingsPage() {
   const { getToken, user } = useAuth();
   
   // Tab state
-  const [activeTab, setActiveTab] = useState<'general' | 'reasons' | 'users'>('general');
+  const [activeTab, setActiveTab] = useState<string>('general');
 
   // States
   const [company, setCompany] = useState<CompanySettings | null>(null);
@@ -52,7 +53,7 @@ export default function SettingsPage() {
   const [isAddingReason, setIsAddingReason] = useState(false);
 
   // New User State
-  const [newUser, setNewUser] = useState<{ email: string; fullName: string; password: string; role: 'ADMIN' | 'STAFF' }>({ email: '', fullName: '', password: '', role: 'STAFF' });
+  const [newUser, setNewUser] = useState<{ email: string; fullName: string; password: string; role: 'STAFF' | 'ADMIN' }>({ email: '', fullName: '', password: '', role: 'STAFF' });
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -208,19 +209,14 @@ export default function SettingsPage() {
     { key: 'general' as const, label: 'Thông tin Cửa hàng', icon: FileText, description: 'Dữ liệu in hoá đơn' },
     { key: 'reasons' as const, label: 'Lý do Huỷ / Hoàn đơn', icon: ListChecks, description: 'Danh mục lý do' },
     ...(user?.role === 'ADMIN' ? [{ key: 'users' as const, label: 'Quản lý nhân sự', icon: UsersIcon, description: 'Phân quyền tài khoản' }] : []),
+    ...(user?.role === 'ADMIN' ? [{ key: 'advanced' as const, label: 'Nâng cao', icon: Settings, description: 'Các lệnh can thiệp sâu vào hệ thống' }] : []),
   ];
 
   return (
     <div className="flex flex-col gap-6 pb-10">
       {/* Page Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-primary/10 rounded-xl">
-          <Settings className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Cài đặt Hệ thống</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Quản lý cấu hình in hoá đơn và các danh mục cốt lõi của CMS.</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Cài đặt Hệ thống</h1>
       </div>
 
       {/* Tab Navigation + Content */}
@@ -422,6 +418,11 @@ export default function SettingsPage() {
                 </p>
               </CardContent>
             </Card>
+          )}
+
+          {/* Advanced Tab */}
+          {activeTab === 'advanced' && user?.role === 'ADMIN' && (
+            <AdvancedTab />
           )}
 
           {/* Users Tab */}
