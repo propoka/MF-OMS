@@ -99,8 +99,8 @@ export default function AppSidebar() {
                     size='lg'
                     className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group'
                   >
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
-                      {user?.fullName?.charAt(0).toUpperCase() || 'U'}
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary/5 flex items-center justify-center">
+                      <Image src="/avatar.svg" alt="Avatar" width={32} height={32} unoptimized />
                     </div>
                     <div className="flex flex-col items-start text-sm group-data-[collapsible=icon]:hidden">
                       <span className="font-semibold leading-none text-sidebar-foreground">{user?.fullName}</span>
@@ -117,8 +117,8 @@ export default function AppSidebar() {
                 sideOffset={4}
               >
                 <div className='px-2 py-1.5 font-normal flex items-center gap-2'>
-                   <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0">
-                      {user?.fullName?.charAt(0).toUpperCase() || 'U'}
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary/5 flex items-center justify-center">
+                      <Image src="/avatar.svg" alt="Avatar" width={32} height={32} unoptimized />
                     </div>
                     <div className="flex flex-col items-start text-sm">
                       <span className="font-semibold leading-none text-sidebar-foreground">{user?.fullName}</span>
