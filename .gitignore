@@ -36,3 +36,7 @@ uploads/
 
 tmp_*
 B?n sao*
+
+# Database backups - never commit to public/ or repo
+*.sql
+*.dump

@@ -64,7 +64,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, initialDa
         const bIsSi = b.name.toLowerCase().includes('sỉ');
         if (aIsSi && !bIsSi) return -1;
         if (!aIsSi && bIsSi) return 1;
-        return a.createdAt > b.createdAt ? 1 : -1;
+        return (a.createdAt ?? '') > (b.createdAt ?? '') ? 1 : -1;
       });
       setGroups(filtered);
       setCategories(resCats);

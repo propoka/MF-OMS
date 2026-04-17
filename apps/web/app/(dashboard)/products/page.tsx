@@ -120,7 +120,7 @@ export default function ProductsPage() {
         const bIsSi = b.name.toLowerCase().includes('sỉ');
         if (aIsSi && !bIsSi) return -1;
         if (!aIsSi && bIsSi) return 1;
-        return a.createdAt > b.createdAt ? 1 : -1; // keep chronological for others
+        return (a.createdAt ?? '') > (b.createdAt ?? '') ? 1 : -1;
       });
       
       setGroups(filtered);
