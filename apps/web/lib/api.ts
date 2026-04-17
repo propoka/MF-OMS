@@ -310,7 +310,7 @@ export const advancedApi = {
   deleteAllProductCategories: (token: string) =>
     apiFetch('/settings/advanced/delete-all/product-categories', { method: 'DELETE', token }),
   seedLocalData: (token: string) =>
-    apiFetch('/settings/advanced/seed-local', { method: 'POST', token }),
+    apiFetch<{ message: string }>('/settings/advanced/seed-local', { method: 'POST', token }),
 };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
