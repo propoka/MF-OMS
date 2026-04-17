@@ -213,7 +213,7 @@ export default function ProductFormModal({ isOpen, onClose, onSuccess, initialDa
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="category">Danh mục <span className="text-destructive">*</span></Label>
-                    <Select value={categoryId} onValueChange={setCategoryId} disabled={categories.length === 0}>
+                    <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? '')} disabled={categories.length === 0}>
                       <SelectTrigger className="!w-full !h-10 border-muted-foreground/20 shadow-sm">
                         <SelectValue placeholder={categories.length === 0 ? "Chưa có danh mục nào (Vui lòng tạo trước)" : "Chọn danh mục"}>
                           {categoryId ? categories.find(c => c.id === categoryId)?.name : undefined}

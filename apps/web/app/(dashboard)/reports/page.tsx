@@ -304,7 +304,7 @@ export default function ReportsPage() {
           
           <div className="flex gap-4">
             <div className="w-[180px]">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? '')}>
                 <SelectTrigger className="w-full !h-10 bg-background border-input">
                   <SelectValue placeholder="Chọn trạng thái">
                     {statusFilter === 'ALL' ? 'Tất cả trạng thái' : formatStatusText(statusFilter)}
