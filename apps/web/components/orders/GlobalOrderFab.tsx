@@ -26,16 +26,13 @@ export default function GlobalOrderFab() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 lg:bottom-8 lg:right-8 z-40 group">
+      <div className="fixed bottom-8 right-8 z-40">
         <Button
           onClick={() => setIsOpen(true)}
-          className="relative h-14 w-14 group-hover:w-[170px] rounded-full transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] p-0 flex items-center justify-start bg-gradient-to-tr from-primary to-primary/80 text-primary-foreground border border-white/10 overflow-hidden shadow-none"
-          title="Tạo đơn hàng mới"
+          className="h-[52px] px-6 rounded-full flex items-center justify-center gap-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 dark:text-zinc-900 text-zinc-50 border border-zinc-700 shadow-[0_12px_36px_rgb(0,0,0,0.15)] hover:shadow-[0_16px_40px_rgb(0,0,0,0.2)] transition-all duration-300 ease-out hover:-translate-y-1"
         >
-          <div className="flex shrink-0 h-14 w-14 items-center justify-center">
-            <Plus size={26} className="group-hover:rotate-90 transition-transform duration-500 ease-in-out" />
-          </div>
-          <span className="shrink-0 whitespace-nowrap font-bold tracking-tight opacity-0 group-hover:opacity-100 group-hover:-translate-x-1 transition-all duration-500 ease-out text-[15px] pr-5">
+          <Plus size={20} className="stroke-[2.5] opacity-90" />
+          <span className="font-semibold tracking-[0.02em] text-[14px] whitespace-nowrap">
             Lên Đơn Mới
           </span>
         </Button>

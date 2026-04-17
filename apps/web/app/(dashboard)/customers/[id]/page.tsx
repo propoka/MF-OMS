@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { OrderStatusBadge } from '@/components/ui/order-status-badge';
 import { ArrowLeft, ShoppingCart, Edit, Inbox, Trash2, AlertTriangle, Loader2, AlertCircle, Phone, MapPin, DollarSign, User, CreditCard } from 'lucide-react';
 import { 
   AlertDialog,
@@ -231,13 +232,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                         <TableCell className="px-6 text-muted-foreground text-sm">{formatDate(order.createdAt)}</TableCell>
                         <TableCell className="px-6 font-medium text-foreground">{formatMoney(order.totalAmount)}</TableCell>
                         <TableCell className="px-6">
-                            {order.deliveryStatus === 'COMPLETED' ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Hoàn thành</Badge> :
-                             order.deliveryStatus === 'SHIPPING' ? <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Đang giao</Badge> :
-                             order.deliveryStatus === 'PROCESSING' ? <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200">Đang xử lý</Badge> :
-                             order.deliveryStatus === 'PENDING' ? <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Chờ xác nhận</Badge> :
-                             order.deliveryStatus === 'RETURNED' ? <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Hoàn trả</Badge> :
-                             order.deliveryStatus === 'CANCELLED' ? <Badge variant="destructive">Huỷ</Badge> :
-                             <Badge variant="outline" className="text-muted-foreground">{order.deliveryStatus}</Badge>}
+                            <OrderStatusBadge status={order.deliveryStatus} />
                         </TableCell>
                       </TableRow>
                     ))}

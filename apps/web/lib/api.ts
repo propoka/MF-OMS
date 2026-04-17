@@ -236,16 +236,16 @@ export const ordersApi = {
 // ─── Dashboard API ───────────────────────────────────────────────────────────
 
 export const dashboardApi = {
-  getKpis: (token: string) =>
+  getKpis: (token: string, days: number = 7) =>
     apiFetch<{
-      revenue: { total: number; thisMonth: number; today: number };
+      revenue: { total: number; thisMonth: number; today: number; growthRate?: number };
       orders: { total: number; active: number; today: number };
       customers: { total: number; newThisMonth: number };
       debt: { total: number };
       revenueChart: { date: string; revenue: number; orders: number }[];
       topProducts: { name: string; sku: string; totalRevenue: number; totalSold: number }[];
-      topCustomers: { name: string; phone: string; totalRevenue: number }[];
-    }>('/dashboard/kpis', { token }),
+      topCustomers: { name: string; phone: string; totalRevenue: number; totalOrders: number }[];
+    }>(`/dashboard/kpis?days=${days}`, { token }),
 
   getReport: (token: string, startDate?: string, endDate?: string) => {
     const searchParams = new URLSearchParams();

@@ -5,17 +5,21 @@ import { PrismaService } from '../prisma/prisma.service';
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
-  async getKpis() {
+  async getKpis(days: number = 7) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
     // Fix #13: Batch queries vào một Promise.all duy nhất thay vì chạy tuần tự
     const [
       revenueResult,
       revenueMonthResult,
       revenueTodayResult,
+      revenueYesterdayResult,
       totalOrders,
       activeOrders,
       ordersTodayCount,
@@ -40,6 +44,13 @@ export class DashboardService {
         where: {
           deliveryStatus: 'COMPLETED',
           createdAt: { gte: today },
+        },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          deliveryStatus: 'COMPLETED',
+          createdAt: { gte: yesterday, lt: today },
         },
         _sum: { totalAmount: true },
       }),
@@ -72,28 +83,29 @@ export class DashboardService {
       this.prisma.order.groupBy({
         by: ['snapshotCustomerPhone', 'snapshotCustomerName'],
         _sum: { totalAmount: true },
+        _count: { _all: true },
         orderBy: { _sum: { totalAmount: 'desc' } },
         take: 10,
         where: { deliveryStatus: 'COMPLETED' },
       }),
     ]);
 
-    // 5. Biểu đồ doanh thu 7 ngày gần nhất
-    const last7Days = new Date();
-    last7Days.setDate(last7Days.getDate() - 6);
-    last7Days.setHours(0, 0, 0, 0);
+    // 5. Biểu đồ doanh thu X ngày gần nhất
+    const lastXDays = new Date();
+    lastXDays.setDate(lastXDays.getDate() - (days - 1));
+    lastXDays.setHours(0, 0, 0, 0);
 
     // Batch chart queries
-    const [orders7Days, allOrders7Days] = await Promise.all([
+    const [ordersXDays, allOrdersXDays] = await Promise.all([
       this.prisma.order.findMany({
         where: {
           deliveryStatus: 'COMPLETED',
-          createdAt: { gte: last7Days },
+          createdAt: { gte: lastXDays },
         },
         select: { createdAt: true, totalAmount: true },
       }),
       this.prisma.order.findMany({
-        where: { createdAt: { gte: last7Days } },
+        where: { createdAt: { gte: lastXDays } },
         select: { createdAt: true },
       }),
     ]);
@@ -101,8 +113,8 @@ export class DashboardService {
     // Gom nhóm theo ngày
     const chartDataMap: Record<string, { revenue: number; orders: number }> =
       {};
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(last7Days);
+    for (let i = 0; i < days; i++) {
+      const d = new Date(lastXDays);
       d.setDate(d.getDate() + i);
       const dayStr = d.toLocaleDateString('vi-VN', {
         day: '2-digit',
@@ -112,7 +124,7 @@ export class DashboardService {
     }
 
     // Tính doanh thu
-    orders7Days.forEach((o) => {
+    ordersXDays.forEach((o) => {
       const dayStr = o.createdAt.toLocaleDateString('vi-VN', {
         day: '2-digit',
         month: '2-digit',
@@ -123,7 +135,7 @@ export class DashboardService {
     });
 
     // Đếm lượng đơn (Toàn bộ)
-    allOrders7Days.forEach((o) => {
+    allOrdersXDays.forEach((o) => {
       const dayStr = o.createdAt.toLocaleDateString('vi-VN', {
         day: '2-digit',
         month: '2-digit',
@@ -139,11 +151,21 @@ export class DashboardService {
       orders: chartDataMap[key].orders,
     }));
 
+    const todayRev = Number(revenueTodayResult._sum.totalAmount || 0);
+    const yesterdayRev = Number(revenueYesterdayResult._sum.totalAmount || 0);
+    let growthRate = 0;
+    if (yesterdayRev === 0) {
+      growthRate = todayRev > 0 ? 100 : 0;
+    } else {
+      growthRate = ((todayRev - yesterdayRev) / yesterdayRev) * 100;
+    }
+
     return {
       revenue: {
         total: Number(revenueResult._sum.totalAmount || 0),
         thisMonth: Number(revenueMonthResult._sum.totalAmount || 0),
-        today: Number(revenueTodayResult._sum.totalAmount || 0),
+        today: todayRev,
+        growthRate: growthRate,
       },
       orders: {
         total: totalOrders,
@@ -165,6 +187,7 @@ export class DashboardService {
         name: c.snapshotCustomerName,
         phone: c.snapshotCustomerPhone,
         totalRevenue: Number(c._sum.totalAmount || 0),
+        totalOrders: c._count ? c._count._all : 0,
       })),
     };
   }
@@ -173,11 +196,9 @@ export class DashboardService {
     const whereClause: any = {};
     if (startDateStr || endDateStr) {
       whereClause.createdAt = {};
-      if (startDateStr) whereClause.createdAt.gte = new Date(startDateStr);
+      if (startDateStr) whereClause.createdAt.gte = new Date(`${startDateStr}T00:00:00.000+07:00`);
       if (endDateStr) {
-        const end = new Date(endDateStr);
-        end.setHours(23, 59, 59, 999);
-        whereClause.createdAt.lte = end;
+        whereClause.createdAt.lte = new Date(`${endDateStr}T23:59:59.999+07:00`);
       }
     }
 

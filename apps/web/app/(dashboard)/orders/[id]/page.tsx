@@ -9,9 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Printer, AlertTriangle, Truck, ShieldAlert, Pencil, History, Phone, MapPin, User, Package, FileText, Clock, Trash2, FileDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { OrderStatusBadge } from '@/components/ui/order-status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import * as xlsx from 'xlsx';
 import { 
   AlertDialog,
@@ -23,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle 
 } from '@/components/ui/alert-dialog';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2, CalendarIcon } from 'lucide-react';
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -160,17 +162,7 @@ export default function OrderDetailPage() {
 
   const formatMoney = (amount: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING': return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 shadow-sm px-3 py-1">Chờ xác nhận</Badge>;
-      case 'PROCESSING': return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 shadow-sm px-3 py-1">Đang xử lý</Badge>;
-      case 'SHIPPING': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-sm px-3 py-1">Đang giao</Badge>;
-      case 'COMPLETED': return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm px-3 py-1">Hoàn thành</Badge>;
-      case 'CANCELLED': return <Badge variant="destructive" className="shadow-sm px-3 py-1">Huỷ</Badge>;
-      case 'RETURNED': return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shadow-sm px-3 py-1">Hoàn trả</Badge>;
-      default: return <Badge variant="outline" className="shadow-sm px-3 py-1">{status}</Badge>;
-    }
-  };
+
 
   const getStatusLabel = (status: string) => {
     const s = (status || '').toUpperCase();
@@ -208,42 +200,62 @@ export default function OrderDetailPage() {
   return (
     <div className="flex flex-col gap-6 pb-8">
       {/* HEADER SECTION */}
-      <div className="flex items-center gap-4 print:hidden">
-        <Link href="/orders" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors border border-input bg-background hover:bg-muted h-10 w-10 shadow-sm">
-          <ArrowLeft className="h-5 w-5 text-muted-foreground" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            Hóa đơn {order.orderNumber}
-            {getStatusBadge(normalizedStatus)}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Ngày lập: {new Date(order.createdAt).toLocaleString('vi-VN')} <span className="mx-1">•</span> Thu ngân: {order.createdBy?.fullName || 'Hệ thống'}
-          </p>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 print:hidden">
+        <div className="flex items-center gap-4">
+          <Link href="/orders" className="inline-flex items-center justify-center rounded-xl transition-colors bg-white/50 border border-border/40 hover:bg-white h-11 w-11 shadow-sm shrink-0">
+            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+              Hóa đơn {order.orderNumber}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-[13px] text-muted-foreground mt-1.5 font-medium">
+              <OrderStatusBadge status={normalizedStatus} />
+              <span className="hidden lg:inline text-border/60">•</span>
+              <span className="flex items-center gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {new Date(order.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})} - {new Date(order.createdAt).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit', year:'numeric'})}
+              </span>
+              <span className="hidden lg:inline text-border/60">•</span>
+              <span className="flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                Thu ngân: {order.createdBy?.fullName || 'Hệ thống'}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-3 shrink-0">
+
+        {/* ACTION DOCK */}
+        <div className="flex bg-white/50 border border-white/40 shadow-sm rounded-full p-1 h-11 shrink-0 w-full xl:w-auto">
           {normalizedStatus === 'PENDING' && (
             <Link href={`/orders/${id}/edit`} tabIndex={-1}>
-              <Button variant="outline" className="shadow-sm font-medium hover:text-primary">
-                <Pencil className="mr-2 h-4 w-4" /> Chỉnh sửa
+              <Button variant="ghost" className="rounded-full h-full px-3 text-muted-foreground hover:bg-white hover:text-primary transition-all duration-300" title="Chỉnh sửa">
+                <Pencil className="h-4 w-4" />
               </Button>
             </Link>
           )}
           {isCancellable && (
-              <Button variant="outline" onClick={() => setIsCancelModalOpen(true)} className="shadow-sm text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors">
-                <ShieldAlert className="mr-2 h-4 w-4" /> Huỷ đơn hàng
-              </Button>
+            <Button variant="ghost" onClick={() => setIsCancelModalOpen(true)} className="rounded-full h-full px-3 text-muted-foreground hover:bg-amber-50 hover:text-amber-700 transition-all duration-300" title="Huỷ đơn hàng">
+              <ShieldAlert className="h-4 w-4" />
+            </Button>
           )}
           {user?.role === 'ADMIN' && (
-             <Button variant="outline" onClick={() => setIsDeleteModalOpen(true)} className="shadow-sm border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors" disabled={isSaving}>
-               <Trash2 className="mr-2 h-4 w-4" /> Xoá
-             </Button>
+            <Button variant="ghost" onClick={() => setIsDeleteModalOpen(true)} className="rounded-full h-full px-3 text-muted-foreground hover:bg-red-50 hover:text-red-700 transition-all duration-300" disabled={isSaving} title="Xoá vĩnh viễn">
+              <Trash2 className="h-4 w-4" />
+            </Button>
           )}
-          <Button variant="outline" onClick={handleExportExcel} className="shadow-sm hover:bg-emerald-50 hover:text-emerald-700 bg-background hover:border-emerald-200 transition-colors cursor-pointer">
-            <FileDown className="mr-2 h-4 w-4" /> Export Excel
+          
+          {(normalizedStatus === 'PENDING' || isCancellable || user?.role === 'ADMIN') && (
+            <div className="w-[1px] h-full bg-border/40 mx-1"></div>
+          )}
+          
+          <Button variant="ghost" onClick={handleExportExcel} className="rounded-full h-full text-[13px] font-semibold px-4 hover:bg-emerald-50 hover:text-emerald-700 text-muted-foreground transition-all duration-300 flex-1 xl:flex-none">
+            <FileDown className="mr-2 h-4 w-4" /> 
+            <span className="hidden sm:inline">Xuất Excel</span>
           </Button>
-          <Button onClick={handlePrint} className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5">
-            <Printer className="mr-2 h-5 w-5" /> In Hoá Đơn
+          <Button variant="ghost" onClick={handlePrint} className="rounded-full h-full text-[13px] font-bold px-5 text-primary hover:bg-primary/10 transition-all duration-300 flex-1 xl:flex-none">
+            <Printer className="mr-2 h-4 w-4" />
+            In Hóa Đơn
           </Button>
         </div>
       </div>
@@ -260,8 +272,8 @@ export default function OrderDetailPage() {
         
         {/* LEFT: Order Items */}
         <div className="xl:col-span-2 print:col-span-3">
-          <Card className="glass shadow-sm border-muted/50 overflow-hidden print:shadow-none print:border-none print:bg-transparent">
-            <CardHeader className="bg-muted/30 border-b py-4 print:hidden flex flex-row items-center justify-between px-6">
+          <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden print:shadow-none print:border-none print:bg-transparent">
+            <CardHeader className="bg-white/40 border-b border-white/40 py-4 print:hidden flex flex-row items-center justify-between px-6">
               <CardTitle className="text-base flex items-center gap-2">
                 <Package className="h-4 w-4 text-primary" />
                 Chi tiết đơn hàng
@@ -276,12 +288,12 @@ export default function OrderDetailPage() {
               <Table>
                 <TableHeader className="bg-muted/20">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="px-6 text-foreground font-semibold">Sản phẩm</TableHead>
-                    <TableHead className="px-3 text-foreground font-semibold text-center w-[70px]">ĐVT</TableHead>
-                    <TableHead className="px-3 text-foreground font-semibold text-center w-[60px]">SL</TableHead>
-                    <TableHead className="px-4 text-foreground font-semibold text-right w-[110px]">Đơn giá</TableHead>
-                    <TableHead className="px-4 text-foreground font-semibold text-right w-[110px]">Chiết khấu</TableHead>
-                    <TableHead className="px-6 text-foreground font-semibold text-right w-[120px]">Thành tiền</TableHead>
+                    <TableHead className="px-6 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground w-auto">Sản phẩm</TableHead>
+                    <TableHead className="px-3 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center w-[70px]">ĐVT</TableHead>
+                    <TableHead className="px-3 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center w-[60px]">SL</TableHead>
+                    <TableHead className="px-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[110px]">Đơn giá</TableHead>
+                    <TableHead className="px-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[110px]">Chiết khấu</TableHead>
+                    <TableHead className="px-6 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[120px]">Thành tiền</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -307,29 +319,29 @@ export default function OrderDetailPage() {
               {/* Summary Footer */}
               <div className="px-6 py-5 bg-muted/20 border-t">
                 <div className="flex justify-end">
-                  <div className="w-full md:w-72 space-y-2">
+                  <div className="w-full md:w-[320px] space-y-2">
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Tạm tính:</span>
-                      <span className="font-semibold text-foreground">{formatMoney(order.subtotal)}</span>
+                      <span className="font-semibold text-foreground text-right min-w-[120px]">{formatMoney(order.subtotal)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>Phí vận chuyển:</span>
-                      <span className="font-semibold text-foreground">{order.shippingFee > 0 ? '+' : ''} {formatMoney(order.shippingFee)}</span>
+                      <span className="font-semibold text-foreground text-right min-w-[120px]">{order.shippingFee > 0 ? '+' : ''} {formatMoney(order.shippingFee)}</span>
                     </div>
                     {totalDiscount > 0 ? (
-                      <div className="flex justify-between text-sm text-muted-foreground border-b border-border/50 pb-3">
+                      <div className="flex justify-between text-sm text-muted-foreground border-b border-border/50 pb-3 mt-2">
                         <span>Chiết khấu:</span>
-                        <span className="font-semibold text-destructive">- {formatMoney(totalDiscount)}</span>
+                        <span className="font-semibold text-destructive text-right min-w-[120px]">- {formatMoney(totalDiscount)}</span>
                       </div>
                     ) : (
-                      <div className="flex justify-between text-sm text-muted-foreground border-b border-border/50 pb-3">
+                      <div className="flex justify-between text-sm text-muted-foreground border-b border-border/50 pb-3 mt-2">
                         <span>Chiết khấu:</span>
-                        <span className="font-semibold text-foreground">0 ₫</span>
+                        <span className="font-semibold text-foreground text-right min-w-[120px]">0 ₫</span>
                       </div>
                     )}
-                    <div className="flex justify-between font-bold items-center pt-1">
-                      <span className="text-base text-foreground">Tổng:</span>
-                      <span className="text-2xl text-primary">{formatMoney(order.totalAmount)}</span>
+                    <div className="flex justify-between font-bold items-center pt-2">
+                      <span className="text-[14px] text-muted-foreground uppercase tracking-wider">Tổng Thu</span>
+                      <span className="text-[26px] text-foreground text-right min-w-[120px] tracking-tight">{formatMoney(order.totalAmount)}</span>
                     </div>
                   </div>
                 </div>
@@ -528,8 +540,8 @@ export default function OrderDetailPage() {
         <div className="xl:col-span-1 space-y-5 print:hidden">
           
           {/* Status Card */}
-          <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-3 px-4">
+          <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden">
+            <CardHeader className="bg-white/40 border-b border-white/40 py-3 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Truck className="h-4 w-4 text-primary" />
                 Trạng thái
@@ -538,19 +550,33 @@ export default function OrderDetailPage() {
             <CardContent className="p-4">
               <Select value={normalizedStatus} onValueChange={v => updateStatus(v)} disabled={isCancelled}>
                 <SelectTrigger className="w-full h-10 bg-background border-input transition-shadow">
-                  <SelectValue>{getStatusLabel(normalizedStatus)}</SelectValue>
+                  <SelectValue>
+                    <div className="flex items-center gap-2 font-medium">
+                      <span className={`w-2 h-2 rounded-full ${ORDER_STATUS_CONFIG[normalizedStatus]?.dot || 'bg-gray-500'}`}></span>
+                      {getStatusLabel(normalizedStatus)}
+                    </div>
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-[16px] p-2 shadow-2xl border-white/60 backdrop-blur-3xl bg-white/70">
                   {/* Luôn hiển thị trạng thái hiện tại */}
-                  <SelectItem value={normalizedStatus} className="py-2 cursor-pointer font-semibold text-primary">{getStatusLabel(normalizedStatus)}</SelectItem>
+                  <SelectItem value={normalizedStatus} className="rounded-xl py-2.5 px-3 mb-1 focus:bg-white/80 focus:text-foreground last:mb-0 transition-all cursor-pointer data-[state=checked]:bg-white data-[state=checked]:shadow-sm data-[state=checked]:shadow-black/5 border border-transparent data-[state=checked]:border-white/60">
+                    <div className="flex items-center gap-2">
+                       <span className={`w-2 h-2 rounded-full shadow-sm ${ORDER_STATUS_CONFIG[normalizedStatus]?.dot || 'bg-gray-500'}`}></span>
+                       <span className="font-semibold text-primary">{getStatusLabel(normalizedStatus)}</span>
+                    </div>
+                  </SelectItem>
                   {allowedTransitions.map(tr => {
-                    if (tr === 'PENDING') return <SelectItem key={tr} value="PENDING" className="py-2 cursor-pointer">Chờ xác nhận</SelectItem>;
-                    if (tr === 'PROCESSING') return <SelectItem key={tr} value="PROCESSING" className="py-2 cursor-pointer">Đang xử lý</SelectItem>;
-                    if (tr === 'SHIPPING') return <SelectItem key={tr} value="SHIPPING" className="py-2 cursor-pointer">Đang giao</SelectItem>;
-                    if (tr === 'COMPLETED') return <SelectItem key={tr} value="COMPLETED" className="py-2 cursor-pointer font-medium text-emerald-700">Hoàn thành</SelectItem>;
-                    if (tr === 'RETURNED') return <SelectItem key={tr} value="RETURNED" className="py-2 cursor-pointer text-orange-600">Hoàn trả</SelectItem>;
-                    if (tr === 'CANCELLED') return <SelectItem key={tr} value="CANCELLED" className="py-2">Huỷ</SelectItem>;
-                    return null;
+                    const config = ORDER_STATUS_CONFIG[tr] || ORDER_STATUS_CONFIG['PENDING'];
+                    return (
+                      <SelectItem key={tr} value={tr} className="rounded-xl py-2.5 px-3 mb-1 focus:bg-white/80 focus:text-foreground last:mb-0 transition-all cursor-pointer data-[state=checked]:bg-white data-[state=checked]:shadow-sm data-[state=checked]:shadow-black/5 border border-transparent data-[state=checked]:border-white/60">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full shadow-sm ${config.dot}`}></span>
+                          <span className={tr === 'COMPLETED' ? 'font-medium text-emerald-700' : tr === 'RETURNED' ? 'text-orange-600' : tr === 'CANCELLED' ? 'text-red-700' : 'font-medium'}>
+                            {getStatusLabel(tr)}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    );
                   })}
                 </SelectContent>
               </Select>
@@ -558,8 +584,8 @@ export default function OrderDetailPage() {
           </Card>
 
           {/* Customer Info Card */}
-          <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-3 px-4 flex flex-row items-center justify-between space-y-0">
+          <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden">
+            <CardHeader className="bg-white/40 border-b border-white/40 py-3 px-4 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <User className="h-4 w-4 text-primary" />
                 Thông tin Khách hàng
@@ -577,9 +603,11 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="font-semibold text-foreground leading-tight truncate">{order.snapshotCustomerName}</span>
-                  <div className="flex items-center gap-1.5 text-primary font-medium text-xs mt-0.5">
-                    <Phone className="h-3 w-3" />
-                    {order.snapshotCustomerPhone}
+                  <div className="flex items-center gap-2 mt-1.5 text-xs">
+                    <div className="p-1 rounded-md bg-primary/10 text-primary shrink-0">
+                      <Phone className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="font-semibold text-foreground/80">{order.snapshotCustomerPhone || 'Trống'}</span>
                   </div>
                 </div>
               </div>
@@ -596,8 +624,8 @@ export default function OrderDetailPage() {
           </Card>
 
           {/* Activity Log Card */}
-          <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-3 px-4">
+          <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden">
+            <CardHeader className="bg-white/40 border-b border-white/40 py-3 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <History className="h-4 w-4 text-primary" />
                 Nhật ký đơn hàng
@@ -714,28 +742,34 @@ export default function OrderDetailPage() {
 
       {/* MODAL CANCELLATION */}
       <AlertDialog open={isCancelModalOpen} onOpenChange={(open) => !open && setIsCancelModalOpen(false)}>
-        <AlertDialogContent className="glass sm:max-w-[425px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center text-destructive">
-              <AlertCircle className="w-5 h-5 mr-2" />
-              Hủy đơn hàng?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-foreground/80">
-              Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.
-            </AlertDialogDescription>
+        <AlertDialogContent className="glass sm:max-w-[425px] border-border/40 shadow-2xl p-6">
+          <AlertDialogHeader className="flex flex-col items-center text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-7 h-7 text-amber-600" />
+            </div>
+            <div className="space-y-2">
+              <AlertDialogTitle className="text-xl font-bold text-foreground">
+                Hủy đơn hàng?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-foreground/80 leading-relaxed text-sm">
+                Bạn đang thao tác huỷ đơn hàng <strong className="text-amber-600 font-bold">{order.orderNumber.replace("ORD-", "")}</strong> của khách hàng <span className="font-bold text-foreground">{order.snapshotCustomerName}</span>.
+                <br/><br/>
+                Hành động này sẽ thay đổi trạng thái và ngừng xử lý đơn hàng. Bạn vui lòng cung cấp lý do huỷ cụ thể bên dưới.
+              </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
           
-          <div className="py-2 space-y-4">
-            <div className="space-y-2">
+          <div className="py-2 space-y-4 w-full">
+            <div className="space-y-2 text-left">
               <label className="text-sm font-semibold leading-none text-foreground">
                 Lý do huỷ <span className="text-destructive">*</span>
               </label>
               <Select value={selectedCancelReasonId} onValueChange={(v) => setSelectedCancelReasonId(v ?? '')}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="-- Chọn lý do huỷ --">
+                  <SelectValue placeholder="-- Chọn lý do --">
                     {selectedCancelReasonId 
                       ? cancelReasons.find(r => r.id === selectedCancelReasonId)?.label 
-                      : "-- Chọn lý do huỷ --"}
+                      : "-- Chọn lý do --"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -747,32 +781,37 @@ export default function OrderDetailPage() {
               </Select>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 text-left">
               <label className="text-sm font-semibold leading-none text-foreground">
                 Ghi chú thêm <span className="text-muted-foreground font-normal whitespace-nowrap ml-1">(Tuỳ chọn)</span>
               </label>
               <textarea 
                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" 
-                placeholder="Nhập thêm chi tiết nếu cần..."
+                placeholder="Nhập thêm chi tiết nguyên nhân huỷ đơn..."
                 value={cancelNotes}
                 onChange={e => setCancelNotes(e.target.value)}
               />
             </div>
           </div>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel className="hover:bg-muted/50 border-0 bg-transparent shadow-none">
+          <AlertDialogFooter className="sm:justify-center flex-row gap-3 pt-4 w-full">
+            <AlertDialogCancel className="flex-1 text-foreground font-semibold hover:bg-muted/50 border border-border/60 bg-white/50 m-0 shadow-sm transition-all" disabled={isSaving}>
               Hủy bỏ
             </AlertDialogCancel>
             <Button 
-               variant="destructive" 
-               disabled={!selectedCancelReasonId} 
+               variant="default" 
+               className="flex-1 bg-amber-600 text-white hover:bg-amber-700 shadow-[0_0_15px_rgba(217,119,6,0.25)] hover:shadow-[0_0_20px_rgba(217,119,6,0.4)] transition-all duration-300 m-0"
+               disabled={!selectedCancelReasonId || isSaving} 
                onClick={() => { 
                  updateStatus('CANCELLED', { cancelReasonId: selectedCancelReasonId, cancelNotes }); 
                  setIsCancelModalOpen(false); 
                }}
             >
-              Xác nhận Hủy Đơn
+              {isSaving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Xử lý...
+                </span>
+              ) : 'Xác nhận Hủy Đơn'}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -780,22 +819,32 @@ export default function OrderDetailPage() {
 
       {/* MODAL DELETE */}
       <AlertDialog open={isDeleteModalOpen} onOpenChange={(open) => !open && setIsDeleteModalOpen(false)}>
-        <AlertDialogContent className="glass sm:max-w-[425px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center text-destructive">
-              <Trash2 className="w-5 h-5 mr-2" />
-              Xóa vĩnh viễn đơn hàng?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-foreground/80">
-              Hành động này sẽ <strong className="text-destructive">xóa toàn bộ dư liệu</strong> của hóa đơn này khỏi hệ thống vĩnh viễn và không thể khôi phục. Bạn có chắc chắn muốn tiếp tục không?
-            </AlertDialogDescription>
+        <AlertDialogContent className="glass sm:max-w-[400px] border-border/40 shadow-2xl p-6">
+          <AlertDialogHeader className="flex flex-col items-center text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-red-700/10 flex items-center justify-center shrink-0">
+              <Trash2 className="w-7 h-7 text-red-700" />
+            </div>
+            <div className="space-y-2">
+              <AlertDialogTitle className="text-xl font-bold text-foreground">
+                Xoá vĩnh viễn đơn hàng?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-foreground/80 leading-relaxed text-sm">
+                Bạn đang thao tác xoá đơn hàng <strong className="text-red-700 font-bold">{order.orderNumber.replace("ORD-", "")}</strong> của khách hàng <span className="font-bold text-foreground">{order.snapshotCustomerName}</span>.
+                <br/><br/>
+                Toàn bộ dữ liệu của đơn này sẽ xoá khỏi hệ thống và <strong className="text-foreground font-semibold">không thể khôi phục</strong>.
+              </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="hover:bg-muted/50 border-0 bg-transparent shadow-none">
+          <AlertDialogFooter className="sm:justify-center flex-row gap-3 pt-6 w-full">
+            <AlertDialogCancel className="flex-1 text-foreground font-semibold hover:bg-muted/50 border border-border/60 bg-white/50 m-0 shadow-sm transition-all" disabled={isSaving}>
               Hủy bỏ
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => { handleDeleteOrder(); setIsDeleteModalOpen(false); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Xác nhận Xóa
+            <AlertDialogAction onClick={() => { handleDeleteOrder(); setIsDeleteModalOpen(false); }} className="flex-1 bg-red-700 text-white hover:bg-red-800 shadow-[0_0_15px_rgba(185,28,28,0.25)] hover:shadow-[0_0_20px_rgba(185,28,28,0.4)] transition-all duration-300 m-0" disabled={isSaving}>
+              {isSaving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Khai tử...
+                </span>
+              ) : 'Xác nhận Xóa'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

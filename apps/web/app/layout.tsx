@@ -13,7 +13,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: 'MF OMS — Quản lý Đơn hàng',
+  title: 'Mountain Farmers OMS - Quản lý đơn hàng nội bộ - Phát triển bởi the. POKALAB',
   description: 'Hệ thống Quản lý Đơn hàng & Chăm sóc Khách hàng — Công ty TNHH Mountain Farmers',
   icons: {
     icon: '/favicon.ico',

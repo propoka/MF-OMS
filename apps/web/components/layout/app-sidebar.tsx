@@ -27,16 +27,36 @@ import Link from 'next/link';
 import Image from 'next/image';
 import * as React from 'react';
 
-// Navigation mapped to Tabler Icons
-const navigation = [
-  { name: 'Tổng quan', href: '/dashboard', icon: Icons.dashboard },
-  { name: 'Khách hàng', href: '/customers', icon: Icons.user },
-  { name: 'Nhóm khách', href: '/customer-groups', icon: Icons.teams },
-  { name: 'Sản phẩm', href: '/products', icon: Icons.product },
-  { name: 'Danh mục sản phẩm', href: '/products/categories', icon: Icons.kanban },
-  { name: 'Đơn hàng', href: '/orders', icon: Icons.billing },
-  { name: 'Báo cáo', href: '/reports', icon: Icons.kanban },
-  { name: 'Cài đặt hệ thống', href: '/settings', icon: Icons.settings },
+// Navigation mapped to Tabler Icons and Grouped
+const navigationGroups = [
+  {
+    label: 'TỔNG QUAN',
+    items: [
+      { name: 'Tổng quan', href: '/dashboard', icon: Icons.dashboard },
+      { name: 'Báo cáo', href: '/reports', icon: Icons.kanban },
+    ]
+  },
+  {
+    label: 'KINH DOANH',
+    items: [
+      { name: 'Đơn hàng', href: '/orders', icon: Icons.billing },
+      { name: 'Khách hàng', href: '/customers', icon: Icons.user },
+      { name: 'Nhóm khách', href: '/customer-groups', icon: Icons.teams },
+    ]
+  },
+  {
+    label: 'KHO & SẢN PHẨM',
+    items: [
+      { name: 'Sản phẩm', href: '/products', icon: Icons.product },
+      { name: 'Danh mục', href: '/products/categories', icon: Icons.kanban },
+    ]
+  },
+  {
+    label: 'HỆ THỐNG',
+    items: [
+      { name: 'Cài đặt hệ thống', href: '/settings', icon: Icons.settings },
+    ]
+  }
 ];
 
 export default function AppSidebar() {
@@ -44,16 +64,16 @@ export default function AppSidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <Sidebar collapsible='icon'>
-      <SidebarHeader className='group-data-[collapsible=icon]:pt-4 border-b border-sidebar-border h-20 flex justify-center py-2'>
+    <Sidebar collapsible='icon' className='border-r-0 border-transparent shadow-[1px_0_10px_rgba(0,0,0,0.03)]'>
+      <SidebarHeader className='group-data-[collapsible=icon]:pt-4 h-16 flex justify-center py-2'>
         <div className="flex items-center justify-center w-full px-2">
           <Image 
             src="/Logo-Moutain-Farmers.png" 
             alt="Mountain Farmers Logo" 
             width={0}
             height={0}
-            sizes="120px"
-            style={{ width: '120px', height: 'auto' }}
+            sizes="100px"
+            style={{ width: '100px', height: 'auto' }}
             className="object-contain group-data-[collapsible=icon]:hidden"
             priority
             unoptimized
@@ -64,31 +84,41 @@ export default function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className='overflow-x-hidden'>
-        <SidebarGroup className='py-0'>
-          <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden mt-4">QUẢN LÝ</SidebarGroupLabel>
-          <SidebarMenu className="gap-2">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <SidebarMenuItem key={item.name}>
-                  <SidebarMenuButton
-                    tooltip={item.name}
-                    isActive={isActive}
-                    render={
-                      <Link href={item.href}>
-                        <Icon />
-                        <span>{item.name}</span>
-                      </Link>
-                    }
-                  />
-                </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </SidebarGroup>
+      <SidebarContent className='overflow-x-hidden pt-4 custom-scrollbar'>
+        {navigationGroups.map((group, index) => (
+          <SidebarGroup key={index} className='py-0 mb-4'>
+            <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden mt-0 text-[10px] uppercase font-semibold text-muted-foreground/60 tracking-wider">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarMenu className="gap-1.5 mt-1">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton
+                      tooltip={item.name}
+                      isActive={isActive}
+                      className={`h-9 px-3 transition-all rounded-lg ${isActive ? 'bg-primary/10 text-primary font-semibold' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 font-medium'}`}
+                      render={
+                        <Link href={item.href} className="flex items-center w-full">
+                          <Icon className={isActive ? "text-primary mr-2" : "text-zinc-500 mr-2"} />
+                          <span>{item.name}</span>
+                          {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+                        </Link>
+                      }
+                    />
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
+
+      <div className="px-4 py-2 opacity-30">
+        <hr className="border-sidebar-border" />
+      </div>
 
       <SidebarFooter>
         <SidebarMenu>

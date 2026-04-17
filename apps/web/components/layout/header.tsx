@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { SidebarTrigger } from '../ui/sidebar';
 import { Separator } from '../ui/separator';
 import { Button } from '@/components/ui/button';
-import { Icons } from '@/components/icons';
+import { GreetingWidget } from './GreetingWidget';
 
 const navigation = [
   { name: 'Tổng quan', href: '/dashboard' },
@@ -21,7 +21,7 @@ export default function Header() {
   const currentNav = navigation.find(n => pathname.startsWith(n.href))?.name || 'Chi tiết';
 
   return (
-    <header className='bg-background sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border'>
+    <header className='bg-[#faf9f8]/60 backdrop-blur-md sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 border-b-0'>
       <div className='flex items-center gap-2 px-4'>
         <SidebarTrigger className='-ml-1' />
         <Separator orientation='vertical' className='mr-2 h-4' />
@@ -30,20 +30,9 @@ export default function Header() {
         </div>
       </div>
 
-      <div className='flex items-center gap-2 px-4'>
+      <div className='flex items-center gap-2 pr-4 md:pr-6 lg:pr-8'>
         <div className='hidden md:flex'>
-          <div className='w-full space-y-2'>
-            <Button
-              variant='outline'
-              className='bg-background text-muted-foreground relative h-9 w-full justify-start rounded-[0.5rem] text-sm font-normal shadow-none sm:pr-12 md:w-40 lg:w-64 cursor-text'
-            >
-              <Icons.search className='mr-2 h-4 w-4' />
-              Tìm kiếm...
-              <kbd className='bg-muted pointer-events-none absolute top-[0.3rem] right-[0.3rem] hidden h-6 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-100 select-none sm:flex text-muted-foreground'>
-                <span className='text-xs'>⌘</span>K
-              </kbd>
-            </Button>
-          </div>
+          <GreetingWidget />
         </div>
       </div>
     </header>

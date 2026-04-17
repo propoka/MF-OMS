@@ -219,6 +219,7 @@ export class OrdersService {
         take: Number(take),
         include: {
           createdBy: { select: { fullName: true } },
+          items: true,
         },
         orderBy: { createdAt: 'desc' },
       }),

@@ -10,8 +10,8 @@ export class DashboardController {
 
   @Get('kpis')
   @ApiOperation({ summary: 'Lấy dữ liệu tổng quan KPIs' })
-  getKpis() {
-    return this.dashboardService.getKpis();
+  getKpis(@Query('days') days?: string) {
+    return this.dashboardService.getKpis(days ? parseInt(days, 10) : 7);
   }
 
   @Get('report')
