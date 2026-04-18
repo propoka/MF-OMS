@@ -669,7 +669,6 @@ export default function ReportsPage() {
                             dataKey="value"
                             stroke="none"
                             cornerRadius={4}
-                            activeIndex={pieActiveIndex}
                             onMouseEnter={(_, index) =>
                               setPieActiveIndex(index)
                             }
