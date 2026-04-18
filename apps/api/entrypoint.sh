@@ -4,12 +4,14 @@ set -e
 echo "[entrypoint] Running Prisma migrations..."
 cd /app/packages/database
 
-# Cực kỳ quan trọng: Luồng cấp cứu Database Restore.
-# Khi Khôi phục SQL, bảng _prisma_migrations bị xoá. Prisma sẽ cố tạo lại toàn bộ bảng và bị sập.
-# Lệnh dưới đây chặn đứng điều đó bằng cách báo cho Prisma biết "Schema gốc đã tồn tại".
-pnpm exec prisma migrate resolve --applied 20260416185109_init_schema_sync || true
-
-pnpm run prisma:migrate:deploy
+# Thử chạy migrate bình thường trước (dành cho database trắng mới tinh)
+if ! pnpm run prisma:migrate:deploy; then
+    echo "[entrypoint] Phát hiện lỗi P3009 (Bảng đã tồn tại do Restore Data hoặc Database cũ). Tiến hành baseline schema cũ..."
+    pnpm exec prisma migrate resolve --applied 20260416185109_init_schema_sync || true
+    
+    # Chạy lại migrate để cập nhật tiếp các bản vá nối tiếp (như indexes)
+    pnpm run prisma:migrate:deploy
+fi
 cd /app/apps/api
 
 echo "[entrypoint] Starting API server..."
