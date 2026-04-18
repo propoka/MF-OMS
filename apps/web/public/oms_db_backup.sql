@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict kc0mcub5i8OsoZTAKOMDeSG3MkgZbehVhNc2wVO6VVVdQ7TjqfYKBmaq9Xx1sFD
+\restrict Lb3dQbFRrIi5GYnk4uc1tc6KwDPho1CimRI60fbrOOzg9EJyhvbudbDGvAuccg6
 
 -- Dumped from database version 16.13
 -- Dumped by pg_dump version 16.13
@@ -337,6 +337,20 @@ CREATE TABLE public.order_items (
 ALTER TABLE public.order_items OWNER TO oms_user;
 
 --
+-- Name: order_seq; Type: SEQUENCE; Schema: public; Owner: oms_user
+--
+
+CREATE SEQUENCE public.order_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.order_seq OWNER TO oms_user;
+
+--
 -- Name: orders; Type: TABLE; Schema: public; Owner: oms_user
 --
 
@@ -356,7 +370,8 @@ CREATE TABLE public.orders (
     "cancelNotes" text,
     notes text,
     "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    "updatedAt" timestamp(3) without time zone NOT NULL
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    "deletedAt" timestamp(3) without time zone
 );
 
 
@@ -660,6 +675,7 @@ ALTER TABLE shadow.users OWNER TO oms_user;
 
 COPY public._prisma_migrations (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count) FROM stdin;
 ee26123f-c5e7-4b63-95be-5ca61b840e3d	e1551ba1e875aff01f82d5b8d9feb5e44d628b536718f9d1fc72efb241b2ad48	2026-04-16 18:51:10.168612+00	20260416185109_init_schema_sync	\N	\N	2026-04-16 18:51:09.721189+00	1
+410b143f-89da-41f5-8acd-edd1b3cd4a59	ca31e01e70ac92ebb868b090d7ee266a5b684f8a0d15d3f56bb4d1dc5ed9931f	2026-04-18 18:35:27.199435+00	20260418183508_add_performance_indexes	\N	\N	2026-04-18 18:35:27.143077+00	1
 \.
 
 
@@ -1210,7 +1226,7 @@ COPY public.order_items (id, "orderId", "productId", "snapshotProductName", "sna
 -- Data for Name: orders; Type: TABLE DATA; Schema: public; Owner: oms_user
 --
 
-COPY public.orders (id, "orderNumber", "customerId", "snapshotCustomerName", "snapshotCustomerPhone", "createdById", "deliveryStatus", subtotal, "discountAmount", "shippingFee", "totalAmount", "cancelReasonId", "cancelNotes", notes, "createdAt", "updatedAt") FROM stdin;
+COPY public.orders (id, "orderNumber", "customerId", "snapshotCustomerName", "snapshotCustomerPhone", "createdById", "deliveryStatus", subtotal, "discountAmount", "shippingFee", "totalAmount", "cancelReasonId", "cancelNotes", notes, "createdAt", "updatedAt", "deletedAt") FROM stdin;
 \.
 
 
@@ -4869,7 +4885,7 @@ cmo1y8uqj0091vxt0mdhz294w	Trứng gà (tặng)	MFKHD3	cmo1xc0vw0004vxp0uzuqvrgw	
 --
 
 COPY public.users (id, email, "passwordHash", "fullName", role, "isActive", "refreshTokenHash", "createdAt", "updatedAt") FROM stdin;
-cmo1u51iy0000vxgku42az9lu	poka@poka.us	$2b$12$WyrqWDKx9Vm5.RetiIBEoOZkxdmnER.xj8yf/FnpqPeRr.0xuBK7.	Administrator	ADMIN	t	$2b$10$SPobC396vmroWRkXtC1xDeaVo7UX.abkxqvmyUz08Y1gEinxmhco2	2026-04-16 18:51:16.09	2026-04-18 17:45:44.042
+cmo1u51iy0000vxgku42az9lu	poka@poka.us	$2b$12$WyrqWDKx9Vm5.RetiIBEoOZkxdmnER.xj8yf/FnpqPeRr.0xuBK7.	Administrator	ADMIN	t	$2b$10$A3Oxkx0KDy0jxDi7NKju9uaoY.gr5hJg.2DaqFJDviKuJNBV8hx/C	2026-04-16 18:51:16.09	2026-04-18 20:39:27.513
 \.
 
 
@@ -4959,6 +4975,13 @@ COPY shadow.products (id, name, sku, unit, "retailPrice", "costPrice", stock, we
 
 COPY shadow.users (id, email, "passwordHash", "fullName", role, "isActive", "createdAt", "updatedAt", "refreshTokenHash") FROM stdin;
 \.
+
+
+--
+-- Name: order_seq; Type: SEQUENCE SET; Schema: public; Owner: oms_user
+--
+
+SELECT pg_catalog.setval('public.order_seq', 1, false);
 
 
 --
@@ -5203,6 +5226,13 @@ CREATE UNIQUE INDEX customers_code_key ON public.customers USING btree (code);
 
 
 --
+-- Name: customers_groupId_idx; Type: INDEX; Schema: public; Owner: oms_user
+--
+
+CREATE INDEX "customers_groupId_idx" ON public.customers USING btree ("groupId");
+
+
+--
 -- Name: customers_phone_key; Type: INDEX; Schema: public; Owner: oms_user
 --
 
@@ -5256,6 +5286,13 @@ CREATE UNIQUE INDEX product_categories_name_key ON public.product_categories USI
 --
 
 CREATE UNIQUE INDEX "product_group_prices_productId_groupId_key" ON public.product_group_prices USING btree ("productId", "groupId");
+
+
+--
+-- Name: products_categoryId_idx; Type: INDEX; Schema: public; Owner: oms_user
+--
+
+CREATE INDEX "products_categoryId_idx" ON public.products USING btree ("categoryId");
 
 
 --
@@ -5565,5 +5602,5 @@ REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 -- PostgreSQL database dump complete
 --
 
-\unrestrict kc0mcub5i8OsoZTAKOMDeSG3MkgZbehVhNc2wVO6VVVdQ7TjqfYKBmaq9Xx1sFD
+\unrestrict Lb3dQbFRrIi5GYnk4uc1tc6KwDPho1CimRI60fbrOOzg9EJyhvbudbDGvAuccg6
 
