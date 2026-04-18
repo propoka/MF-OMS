@@ -135,16 +135,20 @@ COMMIT;
         
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
-        // BẮT BUỘC: Làm mới connection pool của Prisma.
-        // Khi DROP SCHEMA và CREATE SCHEMA được gọi, PostgreSQL sẽ tạo ra các Object IDs (OID) mới.
-        // Prisma Client đang giữ các Prepared Statements cũ trỏ vào OID cũ, nếu không ngắt kết nối
-        // toàn bộ các truy vấn sau đó sẽ bị lỗi 500 (Cached plan must not change result type).
-        await this.prisma.$disconnect();
-        await this.prisma.$connect();
+        // BẮT BUỘC THAY VÌ DISCONNECT: Khởi động lại toàn bộ tiến trình.
+        // Tại sao? 
+        // 1. Prisma Query Engine (viết bằng Rust) thường bị 'panicked' (chết yểu) khi Schema bị DROP ngang.
+        //    Lệnh $disconnect() đôi khi không đủ sức cứu sống lõi Rust này.
+        // 2. Chạy lại Container sẽ kích hoạt \`entrypoint.sh\`, qua đó chạy lại \`prisma migrate deploy\`
+        //    để đắp thêm các Index/Bản vá mới nhất (mà file backup.sql cũ bị thiếu) vào DB vừa phục hồi!
+        setTimeout(() => {
+            console.log('Force restarting API container to refresh Prisma Engine and trigger migrations...');
+            process.exit(0);
+        }, 2000);
 
         return { 
             success: true, 
-            message: `Tiến trình Phục hồi thành công tuyệt đối! Quá trình đã hoàn tất bằng kết nối psql nội hạt.` 
+            message: `Tiến trình Phục hồi thành công tuyệt đối! Hệ thống API sẽ tự động khởi động lại sau 2 giây để đồng bộ cấu trúc mới.` 
         };
     } catch (err: any) {
         console.error('Lỗi khi nạp SQL:', err);
