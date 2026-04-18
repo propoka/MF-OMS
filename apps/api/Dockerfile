@@ -55,7 +55,7 @@ RUN pnpm db:generate
 
 # Copy entrypoint script
 COPY apps/api/entrypoint.sh /app/apps/api/entrypoint.sh
-RUN chmod +x /app/apps/api/entrypoint.sh
+RUN sed -i 's/\r$//' /app/apps/api/entrypoint.sh && chmod +x /app/apps/api/entrypoint.sh
 
 WORKDIR /app/apps/api
 
