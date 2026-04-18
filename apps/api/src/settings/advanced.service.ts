@@ -121,9 +121,9 @@ COMMIT;
         fs.writeFileSync(tempPath, atomicSql, 'utf8');
 
         // Chạy trực tiếp psql (yêu cầu postgresql-client đã cài trong container)
-        // $DATABASE_URL sẽ do biến môi trường của container tự cấp
-        const restoreCmd = `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /tmp/atomic_restore.sql`;
-        
+        // Lược bỏ query parameter (như ?schema=public) khỏi DATABASE_URL vì psql không hỗ trợ
+        const psqlUrl = process.env.DATABASE_URL?.split('?')[0] || '';
+        const restoreCmd = `psql "${psqlUrl}" -v ON_ERROR_STOP=1 -f /tmp/atomic_restore.sql`;
         try {
             const { stdout, stderr } = await exec(restoreCmd);
             console.log('Phục hồi dữ liệu MySQL/PostgreSQL:', stdout);
