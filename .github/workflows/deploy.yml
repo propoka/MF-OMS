@@ -19,6 +19,9 @@ jobs:
             cd /root/MF-OMS
             git pull origin main
 
+            # Bỏ qua migration khởi tạo nếu bảng đã tồn tại (phòng tránh lỗi P3009 baseline)
+            docker compose -f docker-compose.prod.yml run --rm api sh -c "cd /app/packages/database && pnpm exec prisma migrate resolve --applied 20260416185109_init_schema_sync" || true
+
             # Build & deploy containers (API entrypoint auto-runs prisma migrate deploy)
             docker compose -f docker-compose.prod.yml build
             docker compose -f docker-compose.prod.yml up -d
