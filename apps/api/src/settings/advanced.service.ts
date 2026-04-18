@@ -135,6 +135,13 @@ COMMIT;
         
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
+        // BẮT BUỘC: Làm mới connection pool của Prisma.
+        // Khi DROP SCHEMA và CREATE SCHEMA được gọi, PostgreSQL sẽ tạo ra các Object IDs (OID) mới.
+        // Prisma Client đang giữ các Prepared Statements cũ trỏ vào OID cũ, nếu không ngắt kết nối
+        // toàn bộ các truy vấn sau đó sẽ bị lỗi 500 (Cached plan must not change result type).
+        await this.prisma.$disconnect();
+        await this.prisma.$connect();
+
         return { 
             success: true, 
             message: `Tiến trình Phục hồi thành công tuyệt đối! Quá trình đã hoàn tất bằng kết nối psql nội hạt.` 
