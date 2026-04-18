@@ -164,7 +164,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="col-span-2 lg:col-span-3 flex flex-col gap-4">
           {/* Biểu đồ Doanh thu */}
-          <Card className="flex-1 border border-border/40 shadow-sm rounded-2xl overflow-hidden bg-white/40 backdrop-blur-lg">
+          <Card className="flex-1 min-w-0 border border-border/40 shadow-sm rounded-2xl overflow-hidden bg-white/40 backdrop-blur-lg">
             <CardHeader className="flex flex-row items-center justify-between pb-6 pt-6 px-6 border-b border-border/30">
               <div className="space-y-1">
                 <CardTitle className="text-base font-semibold text-foreground">Doanh thu {chartDays} ngày gần nhất</CardTitle>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Biểu đồ Số lượng đơn hàng */}
-          <Card className="flex-1 border border-border/40 shadow-sm rounded-2xl overflow-hidden bg-white/40 backdrop-blur-lg">
+          <Card className="flex-1 min-w-0 border border-border/40 shadow-sm rounded-2xl overflow-hidden bg-white/40 backdrop-blur-lg">
             <CardHeader className="flex flex-row items-center justify-between pb-6 pt-6 px-6 border-b border-border/30">
               <div className="space-y-1">
                 <CardTitle className="text-base font-semibold text-foreground">Lưu lượng đơn hàng {chartDays} ngày</CardTitle>
