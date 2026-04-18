@@ -19,6 +19,31 @@ jobs:
             cd /root/MF-OMS
             git pull origin main
 
+            # ── Tạo/Cập nhật file .env cho Docker (chỉ khi chưa tồn tại) ──
+            if [ ! -f .env ]; then
+              echo "[deploy] .env chưa tồn tại — tạo mới..."
+              cat > .env << 'EOF'
+            DATABASE_URL="postgresql://oms_user:oms_pass_2025@postgres:5432/oms_db?schema=public"
+            POSTGRES_USER=oms_user
+            POSTGRES_PASSWORD=oms_pass_2025
+            POSTGRES_DB=oms_db
+            JWT_ACCESS_SECRET="mf-oms-access-secret-xK9pL2mN8vQ3rT6wY1uA4sD7jH0cF5b"
+            JWT_REFRESH_SECRET="mf-oms-refresh-secret-zP4nM7kB2xW9qE6vI1oU3yC8hJ5aG0d"
+            JWT_ACCESS_EXPIRES_IN="15m"
+            JWT_REFRESH_EXPIRES_IN="7d"
+            PORT=3001
+            WEB_URL="http://web:3000"
+            NODE_ENV="production"
+            EOF
+              sed -i 's/^[[:space:]]*//' .env
+            fi
+
+            # ── Sửa DATABASE_URL nếu đang dùng localhost (lỗi cấu hình cũ) ──
+            if grep -q '@localhost:' .env; then
+              echo "[deploy] Phát hiện DATABASE_URL dùng localhost — sửa thành postgres..."
+              sed -i 's/@localhost:5432/@postgres:5432/g' .env
+            fi
+
             # Bỏ qua migration khởi tạo nếu bảng đã tồn tại (phòng tránh lỗi P3009 baseline)
             docker compose -f docker-compose.prod.yml run --rm api sh -c "cd /app/packages/database && pnpm exec prisma migrate resolve --applied 20260416185109_init_schema_sync" || true
 
@@ -33,6 +58,6 @@ jobs:
             # Dọn dẹp Docker images cũ
             docker image prune -af --filter "until=24h"
 
-            # In log của API để debug tĩnh
+            # In log của API để debug
+            sleep 5
             docker logs mf_oms_api --tail 100
-

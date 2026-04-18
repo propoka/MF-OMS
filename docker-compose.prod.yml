@@ -24,6 +24,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - WEB_URL=http://web:3000
     ports:
       - "3011:3001"
     depends_on:

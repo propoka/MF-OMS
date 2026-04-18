@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -8,7 +8,7 @@ export class AdvancedService {
   async deleteAllProducts() {
     const orderItemsCount = await this.prisma.orderItem.count();
     if (orderItemsCount > 0) {
-      throw new Error('Vui lòng xóa tất cả Đơn hàng trước khi xóa Sản phẩm (ràng buộc dữ liệu).');
+      throw new BadRequestException('Vui lòng xóa tất cả Đơn hàng trước khi xóa Sản phẩm (ràng buộc dữ liệu).');
     }
     await this.prisma.$transaction([
       this.prisma.productGroupPrice.deleteMany(),
@@ -24,7 +24,7 @@ export class AdvancedService {
   async deleteAllCustomers() {
     const ordersCount = await this.prisma.order.count();
     if (ordersCount > 0) {
-      throw new Error('Vui lòng xóa tất cả Đơn hàng trước khi xóa Khách hàng (ràng buộc dữ liệu).');
+      throw new BadRequestException('Vui lòng xóa tất cả Đơn hàng trước khi xóa Khách hàng (ràng buộc dữ liệu).');
     }
     await this.prisma.$transaction([
       this.prisma.customerSpecialPrice.deleteMany(),
@@ -44,7 +44,7 @@ export class AdvancedService {
   async deleteAllCustomerGroups() {
     const customersCount = await this.prisma.customer.count();
     if (customersCount > 0) {
-      throw new Error('Vui lòng xóa tất cả Khách hàng trước khi xóa Nhóm khách hàng (ràng buộc dữ liệu).');
+      throw new BadRequestException('Vui lòng xóa tất cả Khách hàng trước khi xóa Nhóm khách hàng (ràng buộc dữ liệu).');
     }
     await this.prisma.$transaction([
       this.prisma.productGroupPrice.deleteMany(),
@@ -59,7 +59,7 @@ export class AdvancedService {
   async deleteAllProductCategories() {
     const productsCount = await this.prisma.product.count();
     if (productsCount > 0) {
-      throw new Error('Vui lòng xóa tất cả Sản phẩm trước khi xóa Danh mục sản phẩm (ràng buộc dữ liệu).');
+      throw new BadRequestException('Vui lòng xóa tất cả Sản phẩm trước khi xóa Danh mục sản phẩm (ràng buộc dữ liệu).');
     }
     await this.prisma.productCategory.deleteMany();
     return {
@@ -84,7 +84,7 @@ export class AdvancedService {
             if (res.ok) {
                 backupSql = await res.text();
             } else {
-                throw new Error('HTTP Status: ' + res.status);
+                throw new InternalServerErrorException('Tải file backup từ Web server thất bại — HTTP Status: ' + res.status);
             }
         } catch (fetchErr) {
             // Dự phòng: Môi trường Docker internal network
@@ -94,7 +94,7 @@ export class AdvancedService {
                 if (resInternal.ok) {
                     backupSql = await resInternal.text();
                 } else {
-                     throw new Error('HTTP Status: ' + resInternal.status);
+                     throw new InternalServerErrorException('Tải file backup từ Docker internal network thất bại — HTTP Status: ' + resInternal.status);
                 }
             } catch (fallbackErr) {
                 // Dự phòng cuối: Đọc từ thư mục gốc (áp dụng khi dev local)
@@ -103,7 +103,7 @@ export class AdvancedService {
                 if (fs.existsSync(localPath)) {
                     backupSql = fs.readFileSync(localPath, 'utf8');
                 } else {
-                    throw new Error(`Không thể tìm thấy hoặc tải file oms_db_backup.sql từ cả máy chủ Web, mạng nội bộ lẫn file tĩnh cục bộ.`);
+                    throw new InternalServerErrorException(`Không thể tìm thấy hoặc tải file oms_db_backup.sql từ cả máy chủ Web, mạng nội bộ lẫn file tĩnh cục bộ.`);
                 }
             }
         }
@@ -130,7 +130,7 @@ COMMIT;
             if (stderr) console.warn('Cảnh báo từ quá trình phục hồi:', stderr);
         } catch(restoreDbErr: any) {
             if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-            throw new Error(restoreDbErr.message || 'Lỗi huỷ ngang. Database đã an toàn Rollback!');
+            throw new InternalServerErrorException(restoreDbErr.message || 'Lỗi huỷ ngang. Database đã an toàn Rollback!');
         }
         
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
@@ -152,7 +152,7 @@ COMMIT;
         };
     } catch (err: any) {
         console.error('Lỗi khi nạp SQL:', err);
-        throw new Error('Lỗi Nạp Dữ Liệu SQL: ' + (err.stderr || err.message));
+        throw new InternalServerErrorException('Lỗi Nạp Dữ Liệu SQL: ' + (err.stderr || err.message));
     }
   }
 }
