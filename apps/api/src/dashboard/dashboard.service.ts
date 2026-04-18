@@ -30,13 +30,14 @@ export class DashboardService {
     ] = await Promise.all([
       // 1. Tổng doanh thu (Chỉ tính đơn Completed)
       this.prisma.order.aggregate({
-        where: { deliveryStatus: 'COMPLETED' },
+        where: { deliveryStatus: 'COMPLETED', deletedAt: null },
         _sum: { totalAmount: true },
       }),
       this.prisma.order.aggregate({
         where: {
           deliveryStatus: 'COMPLETED',
           createdAt: { gte: firstDayOfMonth },
+          deletedAt: null,
         },
         _sum: { totalAmount: true },
       }),
@@ -44,6 +45,7 @@ export class DashboardService {
         where: {
           deliveryStatus: 'COMPLETED',
           createdAt: { gte: today },
+          deletedAt: null,
         },
         _sum: { totalAmount: true },
       }),
@@ -51,18 +53,20 @@ export class DashboardService {
         where: {
           deliveryStatus: 'COMPLETED',
           createdAt: { gte: yesterday, lt: today },
+          deletedAt: null,
         },
         _sum: { totalAmount: true },
       }),
       // 2. Tổng đơn hàng
-      this.prisma.order.count(),
+      this.prisma.order.count({ where: { deletedAt: null } }),
       this.prisma.order.count({
         where: {
           deliveryStatus: { in: ['PENDING', 'PROCESSING', 'SHIPPING'] },
+          deletedAt: null,
         },
       }),
       this.prisma.order.count({
-        where: { createdAt: { gte: today } },
+        where: { createdAt: { gte: today }, deletedAt: null },
       }),
       // 3. Khách hàng
       this.prisma.customer.count(),
@@ -76,7 +80,7 @@ export class DashboardService {
         orderBy: { _sum: { lineTotal: 'desc' } },
         take: 10,
         where: {
-          order: { deliveryStatus: 'COMPLETED' },
+          order: { deliveryStatus: 'COMPLETED', deletedAt: null },
         },
       }),
       // 7. Top 10 đại lý / khách hàng
@@ -86,7 +90,7 @@ export class DashboardService {
         _count: { _all: true },
         orderBy: { _sum: { totalAmount: 'desc' } },
         take: 10,
-        where: { deliveryStatus: 'COMPLETED' },
+        where: { deliveryStatus: 'COMPLETED', deletedAt: null },
       }),
     ]);
 
@@ -101,11 +105,12 @@ export class DashboardService {
         where: {
           deliveryStatus: 'COMPLETED',
           createdAt: { gte: lastXDays },
+          deletedAt: null,
         },
         select: { createdAt: true, totalAmount: true },
       }),
       this.prisma.order.findMany({
-        where: { createdAt: { gte: lastXDays } },
+        where: { createdAt: { gte: lastXDays }, deletedAt: null },
         select: { createdAt: true },
       }),
     ]);
@@ -193,7 +198,7 @@ export class DashboardService {
   }
 
   async getReport(startDateStr?: string, endDateStr?: string) {
-    const whereClause: any = {};
+    const whereClause: any = { deletedAt: null };
     if (startDateStr || endDateStr) {
       whereClause.createdAt = {};
       if (startDateStr) whereClause.createdAt.gte = new Date(`${startDateStr}T00:00:00.000+07:00`);

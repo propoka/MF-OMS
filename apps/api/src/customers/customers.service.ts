@@ -45,7 +45,7 @@ export class CustomersService {
           },
           // Dùng _count thay vì load toàn bộ đơn hàng
           _count: {
-            select: { orders: true },
+            select: { orders: { where: { deletedAt: null } } },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -60,6 +60,7 @@ export class CustomersService {
           where: {
             customerId: { in: customerIds },
             deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] },
+            deletedAt: null,
           },
           _sum: { totalAmount: true },
         })
@@ -86,7 +87,7 @@ export class CustomersService {
       include: {
         group: true,
         orders: {
-          where: { deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] } },
+          where: { deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] }, deletedAt: null },
           select: {
             id: true,
             orderNumber: true,
@@ -235,7 +236,7 @@ export class CustomersService {
   async remove(id: string) {
     const existing = await this.prisma.customer.findUnique({
       where: { id },
-      include: { _count: { select: { orders: true } } },
+      include: { _count: { select: { orders: { where: { deletedAt: null } } } } },
     });
 
     if (!existing) throw new NotFoundException('Không tìm thấy khách hàng');

@@ -158,7 +158,7 @@ export class InMemoryPrismaService {
     return this.productCategories.find((category) => category.id === id) || null;
   }
 
-  private decorateUser(user: AnyRecord, args?: AnyRecord) {
+  private decorateUser(user: AnyRecord | null, args?: AnyRecord) {
     if (!user) {
       return null;
     }
@@ -176,7 +176,7 @@ export class InMemoryPrismaService {
     return clone(user);
   }
 
-  private decorateCustomer(customer: AnyRecord, args?: AnyRecord) {
+  private decorateCustomer(customer: AnyRecord | null, args?: AnyRecord) {
     if (!customer) {
       return null;
     }
@@ -242,7 +242,7 @@ export class InMemoryPrismaService {
     return result;
   }
 
-  private decorateProduct(product: AnyRecord, args?: AnyRecord) {
+  private decorateProduct(product: AnyRecord | null, args?: AnyRecord) {
     if (!product) {
       return null;
     }
@@ -305,7 +305,7 @@ export class InMemoryPrismaService {
     return result;
   }
 
-  private decorateOrder(order: AnyRecord, args?: AnyRecord) {
+  private decorateOrder(order: AnyRecord | null, args?: AnyRecord) {
     if (!order) {
       return null;
     }
@@ -1024,7 +1024,7 @@ export class InMemoryPrismaService {
         this.products
           .filter((product) => matchesWhere(product, args.where))
           .slice(args.skip || 0, (args.skip || 0) + (args.take ?? this.products.length))
-          .map((product) => this.decorateProduct(product, args)),
+          .map((product) => this.decorateProduct(product, args) as AnyRecord),
         args.orderBy,
       );
     };
@@ -1187,7 +1187,7 @@ export class InMemoryPrismaService {
         this.orders
           .filter((order) => matchesWhere(order, args.where))
           .slice(args.skip || 0, (args.skip || 0) + (args.take ?? this.orders.length))
-          .map((order) => this.decorateOrder(order, args)),
+          .map((order) => this.decorateOrder(order, args) as AnyRecord),
         args.orderBy,
       );
     };
