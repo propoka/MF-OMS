@@ -137,7 +137,7 @@ COMMIT;
 
         return { 
             success: true, 
-            message: \`Tiến trình Phục hồi thành công tuyệt đối! Quá trình đã hoàn tất bằng kết nối psql nội hạt.\` 
+            message: `Tiến trình Phục hồi thành công tuyệt đối! Quá trình đã hoàn tất bằng kết nối psql nội hạt.` 
         };
     } catch (err: any) {
         console.error('Lỗi khi nạp SQL:', err);
