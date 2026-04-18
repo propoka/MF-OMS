@@ -3,8 +3,13 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
+import { AllExceptionsFilter } from './all-exceptions.filter';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Expose raw errors for debugging
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global prefix for all routes
   app.setGlobalPrefix('api');
