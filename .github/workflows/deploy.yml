@@ -33,8 +33,6 @@ jobs:
             # Dọn dẹp Docker images cũ
             docker image prune -af --filter "until=24h"
 
-            # In log của API để debug nếu có lỗi
-            sleep 15
-            docker ps -a
+            # In log của API để debug tĩnh
             docker logs mf_oms_api --tail 100
 

@@ -32,7 +32,7 @@ RUN pnpm build
 
 # ---- Production stage ----
 FROM node:22-alpine AS runner
-RUN apk add --no-cache openssl && npm install -g pnpm@9
+RUN apk add --no-cache openssl postgresql-client && npm install -g pnpm@9
 
 WORKDIR /app
 

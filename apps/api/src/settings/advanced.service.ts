@@ -70,22 +70,44 @@ export class AdvancedService {
 
   async seedLocalData() {
     const fs = require('fs');
-    const path = require('path');
     const util = require('util');
     const exec = util.promisify(require('child_process').exec);
-    
-    // Fix đường dẫn file backup SQL
-    const backupPath = path.resolve(process.cwd(), '../web/public/oms_db_backup.sql');
-    
-    if (!fs.existsSync(backupPath)) {
-      throw new Error(`Không tìm thấy file backup tại: ${backupPath}. Vui lòng đảm bảo file oms_db_backup.sql đang ở thư mục apps/web/public.`);
-    }
 
     try {
-        // Thuật toán: Tạo ra 1 kịch bản ATOMIC TRANSACTION (Giao dịch nguyên tử).
-        // Gom bộ 3 lệnh "Xoá + Xây Lại + Nạp" vào trong một khối BEGIN ... COMMIT duy nhất.
-        // Nêu gặp lỗi, mọi thao tác (kể cả việc xoá Schema) sẽ bốc hơi và Rollback y nguyên.
-        const backupSql = fs.readFileSync(backupPath, 'utf8');
+        let backupSql = '';
+        
+        // Cố gắng tải file backup từ Web server (ưu tiên)
+        const webUrl = process.env.WEB_URL || 'http://localhost:3000';
+        try {
+            console.log(`Đang tải file backup từ: ${webUrl}/oms_db_backup.sql`);
+            const res = await fetch(`${webUrl}/oms_db_backup.sql`);
+            if (res.ok) {
+                backupSql = await res.text();
+            } else {
+                throw new Error('HTTP Status: ' + res.status);
+            }
+        } catch (fetchErr) {
+            // Dự phòng: Môi trường Docker internal network
+            try {
+                console.log(`Tải file qua WEB_URL thất bại. Chuyển hướng nạp qua docker internal network http://web:3000/oms_db_backup.sql`);
+                const resInternal = await fetch(`http://web:3000/oms_db_backup.sql`);
+                if (resInternal.ok) {
+                    backupSql = await resInternal.text();
+                } else {
+                     throw new Error('HTTP Status: ' + resInternal.status);
+                }
+            } catch (fallbackErr) {
+                // Dự phòng cuối: Đọc từ thư mục gốc (áp dụng khi dev local)
+                const path = require('path');
+                const localPath = path.resolve(process.cwd(), '../web/public/oms_db_backup.sql');
+                if (fs.existsSync(localPath)) {
+                    backupSql = fs.readFileSync(localPath, 'utf8');
+                } else {
+                    throw new Error(`Không thể tìm thấy hoặc tải file oms_db_backup.sql từ cả máy chủ Web, mạng nội bộ lẫn file tĩnh cục bộ.`);
+                }
+            }
+        }
+
         const atomicSql = `
 BEGIN;
 DROP SCHEMA IF EXISTS public CASCADE;
@@ -95,28 +117,27 @@ ${backupSql}
 COMMIT;
         `;
         
-        const tempPath = path.resolve(process.cwd(), '../web/public/temp_atomic_restore.sql');
+        const tempPath = '/tmp/atomic_restore.sql';
         fs.writeFileSync(tempPath, atomicSql, 'utf8');
 
-        // Copy file siêu kịch bản vào container
-        const copyCmd = `docker cp "${tempPath}" mf_oms_postgres:/tmp/atomic_restore.sql`;
-        await exec(copyCmd);
-
-        // Chạy psql với cờ siêu nghiêm ngặt: -v ON_ERROR_STOP=1 (lỗi 1 chữ là huỷ toàn bộ)
-        const restoreCmd = `docker exec mf_oms_postgres psql -U oms_user -d oms_db -v ON_ERROR_STOP=1 -f /tmp/atomic_restore.sql`;
+        // Chạy trực tiếp psql (yêu cầu postgresql-client đã cài trong container)
+        // $DATABASE_URL sẽ do biến môi trường của container tự cấp
+        const restoreCmd = `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /tmp/atomic_restore.sql`;
         
         try {
-            await exec(restoreCmd);
+            const { stdout, stderr } = await exec(restoreCmd);
+            console.log('Phục hồi dữ liệu MySQL/PostgreSQL:', stdout);
+            if (stderr) console.warn('Cảnh báo từ quá trình phục hồi:', stderr);
         } catch(restoreDbErr: any) {
-            fs.unlinkSync(tempPath); // Xoá file rác
+            if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
             throw new Error(restoreDbErr.message || 'Lỗi huỷ ngang. Database đã an toàn Rollback!');
         }
         
-        fs.unlinkSync(tempPath); // Xoá file sau khi xong
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
         return { 
             success: true, 
-            message: `Tiến trình Phục hồi thành công tuyệt đối! Đã bọc Transaction an toàn 100%.` 
+            message: \`Tiến trình Phục hồi thành công tuyệt đối! Quá trình đã hoàn tất bằng kết nối psql nội hạt.\` 
         };
     } catch (err: any) {
         console.error('Lỗi khi nạp SQL:', err);
