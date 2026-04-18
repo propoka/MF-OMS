@@ -511,7 +511,7 @@ export default function ReportsPage() {
                 />
               </div>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val || "ALL")}>
                 <SelectTrigger className="w-[160px] md:w-[175px] lg:w-[185px] !h-11 bg-white/50 border-white/40 rounded-xl text-[13px] tracking-tight font-medium focus:ring-1 focus:ring-black/10 transition-all shadow-sm shadow-black/5">
                   <SelectValue placeholder="Trạng thái">
                     <div className="flex items-center gap-2">
