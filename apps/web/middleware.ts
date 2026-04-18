@@ -13,7 +13,7 @@ export default async function proxy(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/favicon') ||
-    pathname.match(/\.(png|jpe?g|webp|svg|gif|ico)$/i)
+    pathname.match(/\.(png|jpe?g|webp|svg|gif|ico|sql|txt)$/i)
   ) {
     return NextResponse.next();
   }
@@ -59,6 +59,6 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Match tất cả routes trừ _next, api, static files, hình ảnh
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Match tất cả routes trừ _next, api, static files, hình ảnh, tài liệu
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|sql|txt)$).*)'],
 };
