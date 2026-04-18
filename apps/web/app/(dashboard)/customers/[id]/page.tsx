@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { OrderStatusBadge } from '@/components/ui/order-status-badge';
-import { ArrowLeft, ShoppingCart, Edit, Inbox, Trash2, AlertTriangle, Loader2, AlertCircle, Phone, MapPin, DollarSign, User, CreditCard } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ShoppingCart, Edit, Inbox, Trash2, AlertTriangle, Loader2, AlertCircle, Phone, MapPin, DollarSign, User, CreditCard } from 'lucide-react';
+import * as xlsx from 'xlsx';
+import { GenerativeAvatar } from '@/components/ui/generative-avatar';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -98,117 +100,132 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="flex flex-col gap-6 pb-4">
-      {/* HEADER SECTION */}
-      <div className="flex items-center gap-4">
-        <Link href="/customers" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors border border-input bg-background hover:bg-muted h-10 w-10 shadow-sm">
-          <ArrowLeft className="h-5 w-5 text-muted-foreground" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{customer.fullName}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{customer.phone} <span className="mx-1">•</span> Hồ sơ Khách hàng</p>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href="/customers" className="inline-flex items-center justify-center rounded-xl transition-colors bg-white/50 border border-border/40 hover:bg-white h-11 w-11 shadow-sm shrink-0">
+            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+              {customer.fullName}
+            </h1>
+            <p className="flex flex-wrap items-center gap-2 lg:gap-4 text-[13px] text-muted-foreground mt-1.5 font-medium">
+              <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Hồ sơ Khách hàng</span>
+            </p>
+          </div>
         </div>
-        <div className="flex gap-3 shrink-0">
-          <Button variant="outline" onClick={() => setIsEditOpen(true)} className="shadow-sm hover:text-primary font-medium">
-            <Edit className="mr-2 h-4 w-4" /> Cập nhật
+
+        {/* ACTION DOCK */}
+        <div className="flex bg-white shadow-sm border border-border/40 rounded-full p-1.5 shrink-0 h-12 w-auto items-center">
+          <Button variant="ghost" onClick={() => setIsEditOpen(true)} className="rounded-full h-full w-9 p-0 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all duration-300" title="Cập nhật thông tin">
+            <Edit className="h-[18px] w-[18px]" />
           </Button>
           {user?.role === 'ADMIN' && (
             <Button 
-              variant="outline" 
+              variant="ghost" 
               onClick={() => setIsDeleteOpen(true)}
               disabled={(customer.orders?.length || 0) > 0}
-              className="shadow-sm text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              className="rounded-full h-full w-9 p-0 text-muted-foreground hover:bg-red-50 hover:text-red-700 transition-all duration-300"
+              title={(customer.orders?.length || 0) > 0 ? "Không thể xoá khách đang có đơn hàng" : "Xoá vĩnh viễn"}
             >
-              <Trash2 className="h-4 w-4 mr-2" /> Xoá
+              <Trash2 className="h-[18px] w-[18px]" />
             </Button>
           )}
-          <Button onClick={() => window.dispatchEvent(new CustomEvent('open-global-order-fab', { detail: { customerId: customer.id }}))} className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5">
-            <ShoppingCart className="mr-2 h-5 w-5" /> Lên đơn hàng
+          <div className="w-[1px] h-[60%] bg-border/40 mx-2"></div>
+          <Button onClick={() => window.dispatchEvent(new CustomEvent('open-global-order-fab', { detail: { customerId: customer.id }}))} className="group relative overflow-hidden bg-neutral-900/90 hover:bg-black text-white shadow-[0_4px_14px_0_rgba(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] transition-all duration-300 font-bold px-6 h-full rounded-full w-auto flex-1 xl:flex-none">
+            <ShoppingCart className="mr-2 h-4 w-4 opacity-90 group-hover:scale-110 transition-transform duration-300" />
+            <span className="relative z-10 text-[13px] tracking-tight whitespace-nowrap">Lên đơn hàng</span>
           </Button>
         </div>
       </div>
 
       {/* CONTENT GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT COLUMN — Customer Info */}
-        <div className="lg:col-span-1 space-y-5">
-          {/* Info Card */}
-          <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-            <CardHeader className="bg-muted/30 border-b py-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <User className="h-4 w-4 text-primary" />
-                Thông tin chung
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-5 space-y-0">
-              {/* Group */}
-              <div className="flex items-center justify-between py-3 border-b border-muted/50">
-                <span className="text-sm text-muted-foreground">Nhóm KH</span>
-                <span className="font-medium text-foreground">
-                  {customer.group ? (
-                    <Badge variant="secondary" className="font-medium">{customer.group.name}</Badge>
-                  ) : (
-                    <span className="text-sm text-muted-foreground italic">Chưa phân nhóm</span>
-                  )}
-                </span>
-              </div>
+        {/* LEFT COLUMN — CRM Profile Card */}
+        <div className="lg:col-span-1 flex flex-col items-start">
+          <Card className="w-full bg-white border border-border/30 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] rounded-[24px] overflow-hidden hover:shadow-md transition-shadow">
+            
+            {/* Top Identity Block */}
+            <div className="bg-muted/10 p-6 flex flex-col items-center text-center border-b border-border/30 relative">
+               <div className="mb-4">
+                 <GenerativeAvatar name={customer.fullName || 'C'} size={72} />
+               </div>
+               <h2 className="text-xl font-bold text-foreground tracking-tight">{customer.fullName}</h2>
+               <div className="mt-2.5">
+                 {customer.group ? (
+                   <Badge variant="secondary" className="font-semibold bg-white border border-border/40 text-muted-foreground text-[11px] py-1 px-3 shadow-sm rounded-full">
+                     {customer.group.name}
+                   </Badge>
+                 ) : (
+                   <span className="text-muted-foreground italic text-xs">Chưa phân nhóm</span>
+                 )}
+               </div>
+            </div>
 
-              {/* Phone */}
-              <div className="flex items-center justify-between py-3 border-b border-muted/50">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5" /> Điện thoại
-                </span>
-                <span className="font-semibold text-foreground tracking-wide">{customer.phone}</span>
-              </div>
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 divide-x divide-border/30 border-b border-border/30 bg-white/50">
+               <div className="p-4 flex flex-col items-center justify-center hover:bg-muted/10 transition-colors">
+                  <span className="text-[10px] text-muted-foreground/80 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <CreditCard className="w-3 h-3" /> Doanh số
+                  </span>
+                  <span className="font-black text-[15px] text-[oklch(0.40_0.06_45)] tracking-tight">
+                    {formatMoney(customer.totalRevenue || 0)}
+                  </span>
+               </div>
+               <div className="p-4 flex flex-col items-center justify-center hover:bg-muted/10 transition-colors">
+                  <span className="text-[10px] text-muted-foreground/80 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                    <ShoppingCart className="w-3 h-3" /> Đơn hàng
+                  </span>
+                  <span className="font-black text-[15px] text-foreground tracking-tight">
+                    {customer.orders?.length || 0}
+                  </span>
+               </div>
+            </div>
 
-              {/* Region */}
-              <div className="flex items-start justify-between py-3 border-b border-muted/50">
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" /> Khu vực
-                </span>
-                <span className="font-medium text-foreground text-right max-w-[60%]">
-                  {regionText || <span className="text-muted-foreground/60 italic text-sm">Chưa cập nhật</span>}
-                </span>
-              </div>
+            {/* Contact Details List */}
+            <div className="p-6 space-y-5 bg-white">
+               <div className="flex items-start gap-3.5 group">
+                  <div className="p-2 bg-muted/40 rounded-xl group-hover:bg-primary/10 transition-colors">
+                     <Phone className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <div className="flex flex-col min-w-0 pt-0.5">
+                     <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Điện thoại</span>
+                     <span className="text-[14px] font-bold text-foreground tracking-tight">{customer.phone}</span>
+                  </div>
+               </div>
 
-              {/* Address Detail */}
-              <div className="flex items-start justify-between py-3">
-                <span className="text-sm text-muted-foreground shrink-0">Địa chỉ</span>
-                <span className="font-medium text-foreground text-right max-w-[65%]">
-                  {customer.addressDetail || <span className="text-muted-foreground/60 italic text-sm">Chưa cập nhật</span>}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Revenue Card */}
-          <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-            <CardContent className="py-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-primary/10 rounded-xl">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Tổng doanh số</div>
-                  <div className="text-xl font-bold text-primary mt-0.5">{formatMoney(customer.totalRevenue || 0)}</div>
-                </div>
-              </div>
-            </CardContent>
+               <div className="flex items-start gap-3.5 group">
+                  <div className="p-2 bg-muted/40 rounded-xl group-hover:bg-primary/10 transition-colors">
+                     <MapPin className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <div className="flex flex-col min-w-0 pt-0.5">
+                     <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Địa chỉ</span>
+                     <span className="text-[13px] font-medium text-foreground leading-relaxed">
+                       {customer.addressDetail || regionText ? (
+                         [customer.addressDetail, regionText].filter(Boolean).join(', ')
+                       ) : (
+                         <span className="text-[10px] text-muted-foreground/60 uppercase tracking-widest font-semibold mt-0.5 inline-block">Chưa cập nhật</span>
+                       )}
+                     </span>
+                  </div>
+               </div>
+            </div>
           </Card>
         </div>
 
         {/* RIGHT COLUMN — Order History */}
-        <div className="lg:col-span-2">
-          <Card className="glass shadow-sm border-muted/50 overflow-hidden h-full">
-            <CardHeader className="bg-muted/30 border-b py-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
+        <div className="lg:col-span-2 flex flex-col h-full">
+          <Card className="bg-white/40 border border-border/30 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] rounded-[20px] overflow-hidden flex flex-col flex-1 h-full hover:shadow-md transition-shadow">
+            <CardHeader className="border-b border-border/30 py-4 px-6 flex flex-row items-center justify-between">
+              <CardTitle className="text-[15px] font-bold flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-primary" />
                 Lịch sử giao dịch
               </CardTitle>
-              <Badge variant="outline" className="bg-background font-semibold">
+              <Badge variant="outline" className="bg-muted/30 font-semibold text-muted-foreground rounded-full border border-border shadow-sm py-1 px-3">
                 {customer.orders?.length || 0} Đơn hàng
               </Badge>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 flex-1">
               {!customer.orders || customer.orders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-muted-foreground py-16">
                   <Inbox className="h-12 w-12 mb-4 opacity-20" />
@@ -217,21 +234,35 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               ) : (
                 <Table>
-                  <TableHeader className="bg-muted/20">
-                    <TableRow>
-                      <TableHead className="px-6 text-foreground font-semibold">Mã ĐH</TableHead>
-                      <TableHead className="px-6 text-foreground font-semibold">Ngày tạo</TableHead>
-                      <TableHead className="px-6 text-foreground font-semibold">Tổng tiền</TableHead>
-                      <TableHead className="px-6 text-foreground font-semibold">Trạng thái</TableHead>
+                  <TableHeader className="bg-transparent">
+                    <TableRow className="hover:bg-transparent border-b border-border/40">
+                      <TableHead className="px-6 pb-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Mã ĐH</TableHead>
+                      <TableHead className="px-6 pb-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">Ngày tạo</TableHead>
+                      <TableHead className="px-6 pb-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right">Tổng tiền</TableHead>
+                      <TableHead className="px-6 pb-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center">Trạng thái</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {customer.orders.map((order) => (
-                      <TableRow key={order.id} className="hover:bg-muted/30 hover:cursor-pointer transition-colors" onClick={() => router.push(`/orders/${order.id}`)}>
-                        <TableCell className="px-6 font-semibold text-primary">{order.orderNumber}</TableCell>
-                        <TableCell className="px-6 text-muted-foreground text-sm">{formatDate(order.createdAt)}</TableCell>
-                        <TableCell className="px-6 font-medium text-foreground">{formatMoney(order.totalAmount)}</TableCell>
-                        <TableCell className="px-6">
+                      <TableRow key={order.id} className="group hover:bg-muted/40 transition-colors border-border/30 cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
+                        <TableCell className="px-6 py-4 align-top">
+                          <Link href={`/orders/${order.id}`} className="group/link flex items-center gap-1 font-medium text-[13px] text-foreground hover:text-primary transition-colors whitespace-nowrap">
+                            <span>{order.orderNumber}</span>
+                            <ArrowRight className="w-3.5 h-3.5 opacity-0 -translate-x-2 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all duration-300" />
+                          </Link>
+                        </TableCell>
+                        <TableCell className="px-6 py-4 align-top text-foreground font-medium whitespace-nowrap">
+                          <span className="font-bold text-[14px] text-foreground tracking-tight block">
+                            {formatDate(order.createdAt).split(' ')[1]}
+                          </span>
+                          <span className="text-[12px] font-semibold text-muted-foreground block mt-1 opacity-80 uppercase tracking-widest">
+                            {formatDate(order.createdAt).split(' ')[0]}
+                          </span>
+                        </TableCell>
+                        <TableCell className="px-6 py-4 align-top font-bold text-[14px] text-[oklch(0.40_0.06_45)] tracking-tight whitespace-nowrap text-right">
+                          {formatMoney(order.totalAmount)}
+                        </TableCell>
+                        <TableCell className="px-6 py-4 align-top text-center w-[120px]">
                             <OrderStatusBadge status={order.deliveryStatus} />
                         </TableCell>
                       </TableRow>
@@ -257,24 +288,39 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
       {/* MODAL DELETE */}
       <AlertDialog open={isDeleteOpen} onOpenChange={(open) => !open && !isDeleting && setIsDeleteOpen(false)}>
-        <AlertDialogContent className="glass sm:max-w-[425px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              Xóa khách hàng?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="pt-2 text-foreground/80">
-              Bạn có chắc chắn muốn xoá khách hàng <strong className="text-foreground">{customer.fullName}</strong> khỏi hệ thống? Hệ thống sẽ vĩnh viễn xóa dữ liệu của khách hàng này. Thao tác này <strong>không thể hoàn tác</strong>.
-            </AlertDialogDescription>
+        <AlertDialogContent className="glass sm:max-w-[425px] border-border/40 shadow-2xl p-6">
+          <AlertDialogHeader className="flex flex-col items-center text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-7 h-7 text-red-600" />
+            </div>
+            <div className="space-y-2">
+              <AlertDialogTitle className="text-xl font-bold text-foreground">
+                Xóa khách hàng?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-foreground/80 leading-relaxed text-sm">
+                Bạn có chắc chắn muốn xoá khách hàng <strong className="text-red-600 font-bold">{customer.fullName}</strong> khỏi hệ thống? 
+                <br/><br/>
+                Hệ thống sẽ vĩnh viễn xóa dữ liệu của khách hàng này cùng mọi hóa đơn nếu có. Thao tác này là <strong className="text-foreground">không thể hoàn tác</strong>.
+              </AlertDialogDescription>
+            </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4">
-            <AlertDialogCancel disabled={isDeleting} className="hover:bg-muted/50 border-0 bg-transparent shadow-none">
+          
+          <AlertDialogFooter className="sm:justify-center flex-row gap-3 pt-6 w-full">
+            <AlertDialogCancel disabled={isDeleting} className="flex-1 text-foreground font-semibold hover:bg-muted/50 border border-border/60 bg-white/50 m-0 shadow-sm transition-all text-[13px]">
               Huỷ bỏ
             </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Xác nhận xóa
-            </AlertDialogAction>
+            <Button 
+              variant="default" 
+              onClick={confirmDelete} 
+              disabled={isDeleting} 
+              className="flex-1 bg-red-600 text-white hover:bg-red-700 shadow-[0_0_15px_rgba(220,38,38,0.25)] hover:shadow-[0_0_20px_rgba(220,38,38,0.4)] transition-all duration-300 m-0 text-[13px] font-bold"
+            >
+              {isDeleting ? (
+                 <span className="flex items-center gap-2">
+                   <Loader2 className="w-4 h-4 animate-spin" /> Xử lý...
+                 </span>
+              ) : 'Xác nhận Xóa'}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

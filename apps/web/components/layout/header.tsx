@@ -12,7 +12,7 @@ const navigation = [
   { name: 'Nhóm khách', href: '/customer-groups' },
   { name: 'Sản phẩm', href: '/products' },
   { name: 'Đơn hàng', href: '/orders' },
-  { name: 'Cài đặt hệ thống', href: '/settings' },
+  { name: 'Cài đặt', href: '/settings' },
 ];
 
 export default function Header() {
@@ -26,7 +26,7 @@ export default function Header() {
         <SidebarTrigger className='-ml-1' />
         <Separator orientation='vertical' className='mr-2 h-4' />
         <div className="text-sm font-medium text-muted-foreground hidden sm:flex">
-          Hệ thống <span className="mx-2">/</span> <span className="text-foreground">{currentNav}</span>
+          Mountain Farmers OMS <span className="mx-2">/</span> <span className="text-foreground">{currentNav}</span>
         </div>
       </div>
 

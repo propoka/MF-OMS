@@ -202,123 +202,127 @@ export class DashboardService {
       }
     }
 
+    // ── Dùng SQL aggregate thay vì load toàn bộ đơn hàng vào RAM ──
+
+    // 1. Tổng số đơn
+    const totalOrders = await this.prisma.order.count({ where: whereClause });
+
+    // 2. Status breakdown — dùng groupBy thay vì forEach
+    const statusGroupRaw = await this.prisma.order.groupBy({
+      by: ['deliveryStatus'],
+      where: whereClause,
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    });
+
+    const statusBreakdown: Record<string, { count: number; revenue: number }> = {
+      PENDING: { count: 0, revenue: 0 },
+      PROCESSING: { count: 0, revenue: 0 },
+      SHIPPING: { count: 0, revenue: 0 },
+      COMPLETED: { count: 0, revenue: 0 },
+      RETURNED: { count: 0, revenue: 0 },
+      CANCELLED: { count: 0, revenue: 0 },
+    };
+
+    statusGroupRaw.forEach((s) => {
+      if (statusBreakdown[s.deliveryStatus] !== undefined) {
+        statusBreakdown[s.deliveryStatus].count = s._count._all;
+        statusBreakdown[s.deliveryStatus].revenue = Number(s._sum.totalAmount || 0);
+      }
+    });
+
+    // 3. Aggregate financials — chỉ đơn hoàn thành (COMPLETED)
+    const completedWhere = { ...whereClause, deliveryStatus: 'COMPLETED' as const };
+    const activeWhere = {
+      ...whereClause,
+      deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] as const },
+    };
+
+    const [completedAgg, activeAgg, cancelledCount, completedDiscountAgg] = await Promise.all([
+      // Net revenue (chỉ COMPLETED)
+      this.prisma.order.aggregate({
+        where: completedWhere,
+        _sum: { totalAmount: true },
+        _count: { _all: true },
+      }),
+      // Gross revenue (không tính huỷ/hoàn)
+      this.prisma.order.aggregate({
+        where: activeWhere,
+        _sum: { totalAmount: true, shippingFee: true, discountAmount: true },
+      }),
+      // Đếm huỷ/hoàn
+      this.prisma.order.count({
+        where: { ...whereClause, deliveryStatus: { in: ['CANCELLED', 'RETURNED'] } },
+      }),
+      // Tổng discount ở mức line items (cho đơn active)
+      this.prisma.orderItem.aggregate({
+        where: { order: activeWhere },
+        _sum: { lineDiscount: true },
+      }),
+    ]);
+
+    const completedOrdersCount = completedAgg._count._all;
+    const netRevenue = Number(completedAgg._sum.totalAmount || 0);
+    const grossRevenue = Number(activeAgg._sum.totalAmount || 0);
+    const totalShippingFee = Number(activeAgg._sum.shippingFee || 0);
+    const totalDiscount = Number(activeAgg._sum.discountAmount || 0) + Number(completedDiscountAgg._sum.lineDiscount || 0);
+    const aov = completedOrdersCount > 0 ? netRevenue / completedOrdersCount : 0;
+    const cancelRate = totalOrders > 0 ? (cancelledCount / totalOrders) * 100 : 0;
+
+    // 4. Top 10 khách hàng — dùng groupBy (chỉ đơn COMPLETED)
+    const topCustomersRaw = await this.prisma.order.groupBy({
+      by: ['snapshotCustomerPhone', 'snapshotCustomerName'],
+      where: completedWhere,
+      _sum: { totalAmount: true },
+      _count: { _all: true },
+      orderBy: { _sum: { totalAmount: 'desc' } },
+      take: 10,
+    });
+
+    const topCustomers = topCustomersRaw.map((c) => ({
+      name: c.snapshotCustomerName,
+      phone: c.snapshotCustomerPhone,
+      revenue: Number(c._sum.totalAmount || 0),
+      orderCount: c._count._all,
+    }));
+
+    // 5. Top 10 sản phẩm — dùng groupBy (chỉ đơn COMPLETED)
+    const topProductsRaw = await this.prisma.orderItem.groupBy({
+      by: ['snapshotProductSku', 'snapshotProductName'],
+      where: { order: completedWhere },
+      _sum: { lineTotal: true, quantity: true },
+      orderBy: { _sum: { lineTotal: 'desc' } },
+      take: 10,
+    });
+
+    const topProducts = topProductsRaw.map((p) => ({
+      name: p.snapshotProductName,
+      sku: p.snapshotProductSku,
+      revenue: Number(p._sum.lineTotal || 0),
+      sold: Number(p._sum.quantity || 0),
+    }));
+
+    // 6. Load đơn hàng cho bảng chi tiết — CHỈ lấy các field cần thiết, có limit
     const orders = await this.prisma.order.findMany({
       where: whereClause,
-      include: {
-        items: true,
-        customer: {
-          include: { group: true },
-        },
-        createdBy: true,
+      select: {
+        id: true,
+        orderNumber: true,
+        customerId: true,
+        snapshotCustomerName: true,
+        snapshotCustomerPhone: true,
+        deliveryStatus: true,
+        subtotal: true,
+        discountAmount: true,
+        shippingFee: true,
+        totalAmount: true,
+        notes: true,
+        createdAt: true,
+        createdBy: { select: { fullName: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 500, // Giới hạn để tránh nạp hàng chục nghìn đơn
     });
-
-    const totalOrders = orders.length;
-    let completedOrdersCount = 0;
-
-    let grossRevenue = 0; // tổng thu ko tính huỷ/hoàn
-    let netRevenue = 0; // tổng thu chỉ đơn COMPLETED
-    let totalShippingFee = 0;
-    let totalDiscount = 0;
-    let cancelledOrReturnedCount = 0;
-
-    const statusBreakdown: Record<string, { count: number; revenue: number }> =
-      {
-        PENDING: { count: 0, revenue: 0 },
-        PROCESSING: { count: 0, revenue: 0 },
-        SHIPPING: { count: 0, revenue: 0 },
-        COMPLETED: { count: 0, revenue: 0 },
-        RETURNED: { count: 0, revenue: 0 },
-        CANCELLED: { count: 0, revenue: 0 },
-      };
-
-    const customerMap: Record<
-      string,
-      {
-        name: string;
-        phone: string | null;
-        revenue: number;
-        orderCount: number;
-      }
-    > = {};
-    const productMap: Record<
-      string,
-      { name: string; sku: string; revenue: number; sold: number }
-    > = {};
-
-    orders.forEach((o) => {
-      const orderLevelDiscount = Number(o.discountAmount || 0);
-      let itemsLevelDiscount = 0;
-      if (o.items) {
-        o.items.forEach(
-          (i) => (itemsLevelDiscount += Number(i.lineDiscount || 0)),
-        );
-      }
-      const combinedDiscount = orderLevelDiscount + itemsLevelDiscount;
-      const orderTotal = Number(o.totalAmount || 0);
-
-      // Status breakdown
-      if (statusBreakdown[o.deliveryStatus] !== undefined) {
-        statusBreakdown[o.deliveryStatus].count += 1;
-        statusBreakdown[o.deliveryStatus].revenue += orderTotal;
-      }
-
-      // Net revenue (only COMPLETED)
-      if (o.deliveryStatus === 'COMPLETED') {
-        completedOrdersCount++;
-        netRevenue += orderTotal;
-
-        // Top KH và Top SP chỉ tính trên đơn hoàn thành để đảm bảo số liệu thực tế
-        if (!customerMap[o.customerId]) {
-          customerMap[o.customerId] = {
-            name: o.snapshotCustomerName,
-            phone: o.snapshotCustomerPhone,
-            revenue: 0,
-            orderCount: 0,
-          };
-        }
-        customerMap[o.customerId].revenue += orderTotal;
-        customerMap[o.customerId].orderCount += 1;
-
-        if (o.items) {
-          o.items.forEach((i) => {
-            if (!productMap[i.productId]) {
-              productMap[i.productId] = {
-                name: i.snapshotProductName,
-                sku: i.snapshotProductSku,
-                revenue: 0,
-                sold: 0,
-              };
-            }
-            productMap[i.productId].revenue += Number(i.lineTotal || 0);
-            productMap[i.productId].sold += Number(i.quantity || 0);
-          });
-        }
-      }
-
-      if (o.deliveryStatus === 'CANCELLED' || o.deliveryStatus === 'RETURNED') {
-        cancelledOrReturnedCount++;
-      }
-
-      if (o.deliveryStatus !== 'CANCELLED' && o.deliveryStatus !== 'RETURNED') {
-        grossRevenue += orderTotal;
-        totalShippingFee += Number(o.shippingFee || 0);
-        totalDiscount += combinedDiscount;
-      }
-    });
-
-    const aov =
-      completedOrdersCount > 0 ? netRevenue / completedOrdersCount : 0;
-    const cancelRate =
-      totalOrders > 0 ? (cancelledOrReturnedCount / totalOrders) * 100 : 0;
-
-    const topCustomers = Object.values(customerMap)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-    const topProducts = Object.values(productMap)
-      .sort((a, b) => b.sold - a.sold)
-      .slice(0, 10);
 
     return {
       summary: {

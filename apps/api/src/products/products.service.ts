@@ -13,6 +13,7 @@ export class ProductsService {
 
   async findAll(query: { skip?: number; take?: number; search?: string }) {
     const { skip = 0, take = 50, search } = query;
+    const safeTake = Math.min(Number(take) || 50, 200);
     const where: Prisma.ProductWhereInput = {};
 
     if (search) {
@@ -27,11 +28,20 @@ export class ProductsService {
       this.prisma.product.findMany({
         where,
         skip: Number(skip),
-        take: Number(take),
-        include: {
+        take: safeTake,
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          unit: true,
+          retailPrice: true,
+          isActive: true,
+          createdAt: true,
+          categoryId: true,
           category: { select: { name: true, code: true } },
+          // Chỉ lấy groupId + fixedPrice — frontend đã có danh sách group
           groupPrices: {
-            include: { group: { select: { name: true } } },
+            select: { groupId: true, fixedPrice: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -206,6 +216,7 @@ export class ProductsService {
     }[],
   ) {
     let successCount = 0;
+    const errors: { name: string; reason: string }[] = [];
     let fallbackCategory = await this.prisma.productCategory.findFirst({
       where: { code: 'DEFAULT' },
     });
@@ -252,14 +263,17 @@ export class ProductsService {
         });
         successCount++;
       } catch (e: any) {
-        // Skip on duplicate SKU
-        // In real app we might log this or return errors array
+        errors.push({
+          name: p.name,
+          reason: e.message || 'Lỗi trùng SKU hoặc dữ liệu không hợp lệ',
+        });
       }
     }
     return {
       successCount,
       totalTried: validProducts.length,
-      invalidCount, // trả về thêm cho front-end nếu cần
+      invalidCount,
+      errors,
     };
   }
 }

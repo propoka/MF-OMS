@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingEngineService } from './pricing.service';
@@ -23,11 +24,17 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricingEngine: PricingEngineService,
   ) {}
+
+  async onModuleInit() {
+    await this.prisma.$executeRawUnsafe(
+      `CREATE SEQUENCE IF NOT EXISTS order_seq START 1;`,
+    );
+  }
 
   async create(userId: string, data: CreateOrderDto) {
     if (!data.items || data.items.length === 0) {
@@ -53,72 +60,36 @@ export class OrdersService {
 
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
-    let lastError;
 
-    // Retry loop bao bọc TOÀN BỘ quá trình tạo Order (#3)
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const count = await this.prisma.order.count({
-          where: { orderNumber: { startsWith: `ORD-${dateStr}` } },
-        });
-        const seq = (count + 1 + attempt).toString().padStart(4, '0');
-        const orderNumber = `ORD-${dateStr}-${seq}`;
+    // ── Atomic sequence generation to avoid race condition ──
+    const nextValResult = await this.prisma.$queryRawUnsafe<any[]>(
+      `SELECT nextval('order_seq');`,
+    );
+    const seqNum = Number(nextValResult[0].nextval);
+    const orderNumber = `ORD-${dateStr}-${seqNum.toString().padStart(4, '0')}`;
 
-        return await this.prisma.$transaction(async (tx) => {
-          return await tx.order.create({
-            data: {
-              orderNumber,
-              customerId: data.customerId,
-              snapshotCustomerName:
-                pricingResult.customerSnapshot.snapshotCustomerName,
-              snapshotCustomerPhone:
-                pricingResult.customerSnapshot.snapshotCustomerPhone,
-              createdById: userId,
-              deliveryStatus: 'PENDING',
-              subtotal,
-              discountAmount,
-              shippingFee,
-              totalAmount,
-              notes: data.notes,
-              items: {
-                create: pricingResult.orderItemsData,
-              },
-            },
-            include: { items: true, customer: true },
-          });
-        });
-      } catch (e: any) {
-        if (e.code === 'P2002') {
-          // Trùng orderNumber
-          lastError = e;
-          continue;
-        }
-        throw e;
-      }
-    }
-
-    // Fallback nếu 5 lần vẫn trùng (do hệ thống quá tải cực đỉnh)
-    const fallbackSeq = Date.now().toString().slice(-6);
-    return await this.prisma.order.create({
-      data: {
-        orderNumber: `ORD-${dateStr}-${fallbackSeq}`,
-        customerId: data.customerId,
-        snapshotCustomerName:
-          pricingResult.customerSnapshot.snapshotCustomerName,
-        snapshotCustomerPhone:
-          pricingResult.customerSnapshot.snapshotCustomerPhone,
-        createdById: userId,
-        deliveryStatus: 'PENDING',
-        subtotal,
-        discountAmount,
-        shippingFee,
-        totalAmount,
-        notes: data.notes,
-        items: {
-          create: pricingResult.orderItemsData,
+    return await this.prisma.$transaction(async (tx) => {
+      return await tx.order.create({
+        data: {
+          orderNumber,
+          customerId: data.customerId,
+          snapshotCustomerName:
+            pricingResult.customerSnapshot.snapshotCustomerName,
+          snapshotCustomerPhone:
+            pricingResult.customerSnapshot.snapshotCustomerPhone,
+          createdById: userId,
+          deliveryStatus: 'PENDING',
+          subtotal,
+          discountAmount,
+          shippingFee,
+          totalAmount,
+          notes: data.notes,
+          items: {
+            create: pricingResult.orderItemsData,
+          },
         },
-      },
-      include: { items: true, customer: true },
+        include: { items: true, customer: true },
+      });
     });
   }
 
@@ -160,33 +131,51 @@ export class OrdersService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // 2. Xoá các hạng mục cũ
-      await tx.orderItem.deleteMany({
-        where: { orderId: id },
-      });
+      const existingItems = await tx.orderItem.findMany({ where: { orderId: id } });
+      const newItemsData = pricingResult.orderItemsData;
+      
+      const opsData: any[] = [];
+      const usedExistingIds = new Set<string>();
 
-      // 3. Cập nhật Order & OrderItems Snapshot mới
-      const updatedOrder = await tx.order.update({
+      for (const newItem of newItemsData) {
+        const existing = existingItems.find(e => e.productId === newItem.productId && !usedExistingIds.has(e.id));
+        if (existing) {
+          usedExistingIds.add(existing.id);
+          opsData.push(tx.orderItem.update({
+            where: { id: existing.id },
+            data: newItem,
+          }));
+        } else {
+          opsData.push(tx.orderItem.create({
+            data: { ...newItem, orderId: id },
+          }));
+        }
+      }
+
+      const toDeleteIds = existingItems.filter(e => !usedExistingIds.has(e.id)).map(e => e.id);
+      if (toDeleteIds.length > 0) {
+        opsData.push(tx.orderItem.deleteMany({
+          where: { id: { in: toDeleteIds } },
+        }));
+      }
+
+      await Promise.all(opsData);
+
+      // Cập nhật Order và trả về cùng thông tin Snapshot mới
+      return tx.order.update({
         where: { id },
         data: {
           customerId: data.customerId,
-          snapshotCustomerName:
-            pricingResult.customerSnapshot.snapshotCustomerName,
-          snapshotCustomerPhone:
-            pricingResult.customerSnapshot.snapshotCustomerPhone,
+          snapshotCustomerName: pricingResult.customerSnapshot.snapshotCustomerName,
+          snapshotCustomerPhone: pricingResult.customerSnapshot.snapshotCustomerPhone,
           subtotal,
           discountAmount,
           shippingFee,
           totalAmount,
           notes: data.notes,
-          items: {
-            create: pricingResult.orderItemsData,
-          },
         },
         include: { items: true, customer: true },
       });
-
-      return updatedOrder;
     });
   }
 
@@ -197,7 +186,8 @@ export class OrdersService {
     status?: string;
   }) {
     const { skip = 0, take = 50, search, status } = query;
-    const where: Prisma.OrderWhereInput = {};
+    const safeTake = Math.min(Number(take) || 50, 200);
+    const where: Prisma.OrderWhereInput = { deletedAt: null };
 
     if (search) {
       where.OR = [
@@ -208,7 +198,18 @@ export class OrdersService {
     }
 
     if (status) {
-      where.deliveryStatus = status as any;
+      const validStatuses = [
+        'PENDING',
+        'PROCESSING',
+        'SHIPPING',
+        'COMPLETED',
+        'RETURNED',
+        'CANCELLED',
+      ];
+      if (!validStatuses.includes(status.toUpperCase())) {
+        throw new BadRequestException('Trạng thái đơn hàng không hợp lệ');
+      }
+      where.deliveryStatus = status.toUpperCase() as any;
     }
 
     const [total, data] = await Promise.all([
@@ -216,10 +217,11 @@ export class OrdersService {
       this.prisma.order.findMany({
         where,
         skip: Number(skip),
-        take: Number(take),
+        take: safeTake,
         include: {
           createdBy: { select: { fullName: true } },
           items: true,
+          customer: { include: { group: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -229,8 +231,8 @@ export class OrdersService {
   }
 
   async findOne(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+    const order = await this.prisma.order.findFirst({
+      where: { id, deletedAt: null },
       include: {
         items: true,
         createdBy: true,
@@ -271,34 +273,55 @@ export class OrdersService {
       }
     }
 
+    if (data.deliveryStatus === 'CANCELLED' && !data.cancelReasonId) {
+      throw new BadRequestException('Vui lòng chọn lý do huỷ đơn hàng');
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      // Inventory updates have been completely removed.
-      return tx.order.update({
-        where: { id },
+      // Optimistic Locking Control để ngăn ngừa Race Condition
+      const updateResult = await tx.order.updateMany({
+        where: { id, deliveryStatus: order.deliveryStatus },
         data: {
           deliveryStatus: data.deliveryStatus,
           cancelReasonId: data.cancelReasonId,
           cancelNotes: data.cancelNotes,
         },
       });
+
+      if (updateResult.count === 0) {
+        throw new BadRequestException('Trạng thái đơn hàng đã bị đối tượng khác cập nhật. Vui lòng tải lại trang.');
+      }
+
+      return tx.order.findUnique({
+        where: { id },
+      });
     });
   }
 
   async remove(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+    const order = await this.prisma.order.findFirst({
+      where: { id, deletedAt: null },
       include: { items: true },
     });
     if (!order) throw new NotFoundException('Không tìm thấy đơn');
 
+    if (order.deliveryStatus !== 'PENDING' && order.deliveryStatus !== 'CANCELLED') {
+      throw new BadRequestException(
+        'Cảnh báo: Chỉ cho phép xóa đơn hàng đang ở trạng thái Chờ xử lý hoặc Đã Huỷ.',
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      // Inventory return has been completely removed.
-      return tx.order.delete({ where: { id } });
+      return tx.order.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
     });
   }
 
   async import(userId: string, orders: any[]) {
     let successCount = 0;
+    const errors: { row: number; reason: string }[] = [];
 
     // Find default group
     let defaultGroup = await this.prisma.customerGroup.findFirst({
@@ -308,31 +331,68 @@ export class OrdersService {
       defaultGroup = await this.prisma.customerGroup.findFirst();
     }
 
+    // ── Batch pre-fetch: 1 query cho tất cả customers, 1 query cho tất cả products ──
+
+    // Thu thập tất cả SĐT và SKU cần tra cứu
+    const allPhones = new Set<string>();
+    const allSkus = new Set<string>();
+    for (const o of orders) {
+      if (o.customerPhone) allPhones.add(String(o.customerPhone).trim());
+      if (o.productSkus) {
+        o.productSkus.split(',').forEach((s: string) => {
+          const sku = s.trim();
+          if (sku) allSkus.add(sku);
+        });
+      }
+    }
+
+    // Batch lookup customers — 1 query thay vì N query
+    const existingCustomers = allPhones.size > 0
+      ? await this.prisma.customer.findMany({
+          where: { phone: { in: [...allPhones] } },
+          select: { id: true, phone: true },
+        })
+      : [];
+    const customerPhoneMap = new Map(
+      existingCustomers.map((c) => [c.phone!, c.id]),
+    );
+
+    // Batch lookup products — 1 query thay vì N query
+    const existingProducts = allSkus.size > 0
+      ? await this.prisma.product.findMany({
+          where: { sku: { in: [...allSkus] } },
+          select: { id: true, sku: true },
+        })
+      : [];
+    const productSkuMap = new Map(
+      existingProducts.map((p) => [p.sku, p.id]),
+    );
+
+    // ── Xử lý từng đơn hàng (chỉ create khi cần) ──
     for (const o of orders) {
       try {
-        // Find or create customer
+        // Find or create customer — dùng cache thay vì query
         let customerId = '';
-        if (o.customerPhone) {
-          const existingCust = await this.prisma.customer.findUnique({
-            where: { phone: String(o.customerPhone).trim() },
-          });
-          if (existingCust) {
-            customerId = existingCust.id;
-          }
+        const phone = o.customerPhone ? String(o.customerPhone).trim() : null;
+
+        if (phone && customerPhoneMap.has(phone)) {
+          customerId = customerPhoneMap.get(phone)!;
         }
 
         if (!customerId) {
           const newCust = await this.prisma.customer.create({
             data: {
               fullName: o.customerName || 'Khách vãng lai',
-              phone: o.customerPhone ? String(o.customerPhone).trim() : null,
+              phone: phone,
               groupId: defaultGroup?.id as string,
             },
           });
           customerId = newCust.id;
+          // Cập nhật cache cho các dòng sau có thể dùng cùng SĐT
+          if (phone) customerPhoneMap.set(phone, newCust.id);
         }
 
-        // Parse items
+        // Parse items — dùng cache thay vì query từng SKU
         const skus = o.productSkus.split(',').map((s: string) => s.trim());
         const qtys = o.quantities
           .split(',')
@@ -344,11 +404,9 @@ export class OrdersService {
           const qty = qtys[i];
           if (!sku || isNaN(qty)) continue;
 
-          const product = await this.prisma.product.findUnique({
-            where: { sku },
-          });
-          if (product) {
-            items.push({ productId: product.id, quantity: qty });
+          const productId = productSkuMap.get(sku);
+          if (productId) {
+            items.push({ productId, quantity: qty });
           }
         }
 
@@ -363,10 +421,13 @@ export class OrdersService {
           successCount++;
         }
       } catch (e: any) {
-        // Skip invalid order row
+        errors.push({
+          row: Number(o.row) || successCount + errors.length + 1,
+          reason: e.message || 'Lỗi dữ liệu đơn hàng (SKU thiếu/Sai cú pháp)',
+        });
       }
     }
 
-    return { successCount, totalTried: orders.length };
+    return { successCount, totalTried: orders.length, errors };
   }
 }

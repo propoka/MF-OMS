@@ -20,7 +20,7 @@ export class OrderItemDto {
 
   @ApiProperty()
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   quantity: number;
 
   @ApiPropertyOptional()

@@ -6,8 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Plus, Edit, Trash2, Loader2, AlertCircle, Package } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Plus, Edit, Trash2, Loader2, AlertCircle, Package, Layers, Check } from 'lucide-react';
+import { GlassCard } from '@/components/ui/glass-card';
 import { toast } from "sonner";
 import {
   Table,
@@ -128,106 +128,168 @@ export default function CategoriesPage() {
         <div className="flex items-center gap-3">
           <Button 
             onClick={handleAddNew}
-            className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5"
+            className="group relative overflow-hidden bg-neutral-900/85 hover:bg-black/90 backdrop-blur-xl text-white border border-white/20 hover:border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 h-11 rounded-full px-6"
           >
-            <Plus className="mr-2 h-5 w-5" />
-            Tạo Danh mục
+            <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500 pointer-events-none"></div>
+            <Plus className="mr-2 h-5 w-5 group-hover:rotate-90 group-hover:scale-110 transition-all duration-500" />
+            <span className="font-semibold text-[13px]">Tạo Danh mục</span>
           </Button>
         </div>
       </div>
 
-      <Card className="glass shadow-sm border-muted/50">
-        <CardContent className="p-0">
+      <GlassCard className="mb-4">
+        <div className="w-full overflow-auto custom-scrollbar">
           <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[100px] font-semibold text-center">STT</TableHead>
-                <TableHead className="font-semibold text-foreground">Tên danh mục</TableHead>
-                <TableHead className="font-semibold text-foreground">Mã danh mục</TableHead>
-                <TableHead className="font-semibold text-foreground text-center">Số lượng sản phẩm</TableHead>
-                <TableHead className="text-right font-semibold text-foreground">Thao tác</TableHead>
+            <TableHeader>
+              <TableRow className="border-b border-border/40 hover:bg-transparent text-center">
+                <TableHead className="w-[80px] text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground">STT</TableHead>
+                <TableHead className="text-left uppercase tracking-wider text-[11px] font-semibold text-muted-foreground">Tên danh mục</TableHead>
+                <TableHead className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground">Mã danh mục (SKU Prefix)</TableHead>
+                <TableHead className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground">Sản phẩm</TableHead>
+                <TableHead className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-10"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                Array.from({ length: 3 }).map((_, i) => (
+                  <TableRow key={i} className="animate-pulse border-border/30">
+                    <TableCell className="py-4 text-center"><div className="h-4 bg-muted/50 rounded w-4 mx-auto"></div></TableCell>
+                    <TableCell className="py-4 text-left"><div className="h-4 bg-muted/50 rounded w-24"></div></TableCell>
+                    <TableCell className="py-4 text-center"><div className="h-5 bg-muted/50 rounded-xl w-24 mx-auto"></div></TableCell>
+                    <TableCell className="py-4 text-center"><div className="h-5 bg-muted/50 rounded-xl w-16 mx-auto"></div></TableCell>
+                    <TableCell className="py-4 text-center"><div className="h-8 bg-muted/50 rounded-lg w-16 mx-auto"></div></TableCell>
+                  </TableRow>
+                ))
               ) : categories.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Chưa có danh mục nào.</TableCell></TableRow>
+                <TableRow className="border-border/30">
+                  <TableCell colSpan={5} className="h-48 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground">
+                      <Package className="h-10 w-10 mb-4 opacity-30" />
+                      <p className="text-[13px] font-medium tracking-tight">Chưa có danh mục nào.</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
               ) : (
                 categories.map((c, i) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="text-center text-muted-foreground font-medium">{i + 1}</TableCell>
-                    <TableCell className="font-semibold text-foreground">{c.name}</TableCell>
-                    <TableCell><Badge variant="secondary" className="font-medium">{c.code}</Badge></TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className="font-semibold">
-                        <Package className="h-3 w-3 mr-1" />
+                  <TableRow key={c.id} className="group hover:bg-muted/40 transition-colors border-border/30">
+                    <TableCell className="py-4 align-middle text-center text-muted-foreground font-medium text-[13px] tracking-tight">{i + 1}</TableCell>
+                    <TableCell className="py-4 align-middle text-left font-medium text-[13px] text-foreground tracking-tight whitespace-nowrap">{c.name}</TableCell>
+                    <TableCell className="py-4 align-middle text-center">
+                      <Badge variant="secondary" className="font-bold tracking-widest text-[10px] bg-muted/50 text-foreground uppercase px-2 shadow-none border-border/40 hover:bg-muted/50">{c.code}</Badge>
+                    </TableCell>
+                    <TableCell className="py-4 align-middle text-center">
+                      <Badge variant="outline" className="font-medium text-[11px] bg-muted/30 border-border/40 text-foreground px-2 h-5 inline-flex items-center">
+                        <Package className="h-3 w-3 mr-1.5 opacity-70" />
                         {c._count?.products || 0}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(c)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setCatToDelete(c.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="py-4 align-middle text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Button 
+                          variant="ghost" size="sm"
+                          onClick={() => handleEdit(c)} 
+                          className="h-8 w-8 rounded-full bg-primary/5 text-primary hover:bg-primary/10 transition-all p-0 flex items-center justify-center"
+                          title="Sửa"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" size="sm"
+                          onClick={() => setCatToDelete(c.id)} 
+                          className="h-8 w-8 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all p-0 flex items-center justify-center"
+                          title="Xóa"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </GlassCard>
 
       <Dialog open={isModalOpen} onOpenChange={(open) => !open && setIsModalOpen(false)}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{selectedCat ? 'Sửa danh mục' : 'Thêm mới danh mục'}</DialogTitle>
-            <DialogDescription>
-              Mã tiền tố sẽ được dùng để tự động sinh SKU cho sản phẩm thuộc danh mục này. (Phải viết liền không dấu, sẽ tự uppercase)
+        <DialogContent className="sm:max-w-[500px] p-0 border border-white/80 shadow-2xl overflow-hidden rounded-[24px] bg-[#fcfbfb] backdrop-blur-2xl">
+          <DialogHeader className="px-6 py-5 border-b border-black/5">
+            <DialogTitle className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              {selectedCat ? 'Cập nhật Danh mục' : 'Thêm Danh mục mới'}
+            </DialogTitle>
+            <DialogDescription className="text-foreground/70 text-[13px] font-medium tracking-tight">
+              Mã tiền tố sẽ được dùng để tự động sinh SKU cho sản phẩm thuộc danh mục này. (Phải viết liền không dấu, sẽ tự uppercase).
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Tên danh mục <span className="text-destructive">*</span></Label>
-              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Hàng tươi" required autoFocus />
+          
+          <form onSubmit={handleSubmit} className="px-6 py-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 text-foreground font-semibold">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <h3 className="text-[14px]">Thông tin chi tiết</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-[12px] font-bold tracking-tight text-foreground/80">Tên danh mục <span className="text-destructive">*</span></Label>
+                  <Input 
+                    id="name" 
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                    placeholder="VD: Phụ kiện Nam" 
+                    required 
+                    autoFocus
+                    className="h-11 px-4 border-black/5 bg-white focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 rounded-2xl transition-all w-full text-[13px] tracking-tight font-medium placeholder:font-medium placeholder:text-muted-foreground/50"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="code" className="text-[12px] font-bold tracking-tight text-foreground/80">Mã tiền tố SKU <span className="text-destructive">*</span></Label>
+                  <Input 
+                    id="code" 
+                    value={code} 
+                    onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} 
+                    placeholder="VD: PKNAM" 
+                    maxLength={10}
+                    required 
+                    className="h-11 px-4 border-black/5 bg-white focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 rounded-2xl transition-all w-full text-[13px] tracking-tight font-bold uppercase placeholder:font-medium placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="code">Mã tiền tố SKU <span className="text-destructive">*</span></Label>
-              <Input 
-                id="code" 
-                value={code} 
-                onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))} 
-                placeholder="VD: HANGTUOI" 
-                maxLength={10}
-                required 
-                className="uppercase font-bold tracking-wider"
-              />
-            </div>
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Huỷ</Button>
-              <Button type="submit" disabled={isSubmitting || !name || !code} className="bg-emerald-600 hover:bg-emerald-700">
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Lưu lại
+            
+            <DialogFooter className="pt-8 mt-4 border-t border-black/5 bg-transparent m-0 flex items-center justify-end gap-3 px-0 pb-2">
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="h-11 rounded-2xl px-6 bg-white border-black/10 hover:bg-neutral-100 shadow-sm text-[13px] font-bold tracking-tight transition-all">
+                Huỷ bỏ
+              </Button>
+              <Button type="submit" disabled={isSubmitting || !name || !code} className="group relative overflow-hidden bg-neutral-900/85 hover:bg-black/90 backdrop-blur-xl text-white border border-white/20 hover:border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 font-bold px-8 h-11 rounded-2xl">
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin opacity-80" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4 opacity-80 group-hover:scale-110 transition-all duration-500" />
+                )}
+                <span className="relative z-10 text-[13px] tracking-tight">{selectedCat ? 'Lưu thay đổi' : 'Tạo danh mục'}</span>
+                <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500 pointer-events-none"></div>
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-
+      
       <AlertDialog open={!!catToDelete} onOpenChange={(open) => !open && setCatToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="glass sm:max-w-[425px]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive flex items-center"><AlertCircle className="mr-2 h-5 w-5" /> Xác nhận xoá</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" /> Xác nhận xoá
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-2 text-foreground/80">
               Bạn có chắc muốn xoá danh mục này? Hệ thống sẽ chặn thao tác nếu danh mục đang chứa sản phẩm.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ bỏ</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Xoá</AlertDialogAction>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel className="hover:bg-muted/50 border-0 bg-transparent shadow-none">Huỷ bỏ</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Xoá danh mục</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

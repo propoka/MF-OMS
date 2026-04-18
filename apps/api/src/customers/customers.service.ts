@@ -18,6 +18,7 @@ export class CustomersService {
     groupId?: string;
   }) {
     const { skip = 0, take = 50, search, groupId } = query;
+    const safeTake = Math.min(Number(take) || 50, 200);
     const where: Prisma.CustomerWhereInput = {};
 
     if (search) {
@@ -37,30 +38,42 @@ export class CustomersService {
       this.prisma.customer.findMany({
         where,
         skip: Number(skip),
-        take: Number(take),
+        take: safeTake,
         include: {
           group: {
             select: { name: true, discountPercent: true, priceType: true },
           },
-          orders: {
-            where: { deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] } },
-            select: { totalAmount: true },
+          // Dùng _count thay vì load toàn bộ đơn hàng
+          _count: {
+            select: { orders: true },
           },
         },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
 
-    // Tính toán doanh số
+    // Tính doanh thu bằng aggregate — KHÔNG load toàn bộ đơn hàng vào RAM
+    const customerIds = customers.map((c) => c.id);
+    const revenueData = customerIds.length > 0
+      ? await this.prisma.order.groupBy({
+          by: ['customerId'],
+          where: {
+            customerId: { in: customerIds },
+            deliveryStatus: { notIn: ['CANCELLED', 'RETURNED'] },
+          },
+          _sum: { totalAmount: true },
+        })
+      : [];
+
+    const revenueMap = new Map(
+      revenueData.map((r) => [r.customerId, Number(r._sum.totalAmount || 0)]),
+    );
+
     const data = customers.map((c) => {
-      const { orders, ...rest } = c;
-      const totalRevenue = orders.reduce(
-        (sum, o) => sum + Number(o.totalAmount),
-        0,
-      );
+      const { _count, ...rest } = c;
       return {
         ...rest,
-        totalRevenue,
+        totalRevenue: revenueMap.get(c.id) || 0,
       };
     });
 

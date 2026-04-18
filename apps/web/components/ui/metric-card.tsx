@@ -45,18 +45,18 @@ export function MetricCard({
       )}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-[15px] font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <div
           className={cn(
-            "p-3 rounded-full shrink-0",
+            "p-[6px] rounded-full shrink-0",
             METRIC_COLOR_MAP[color] || METRIC_COLOR_MAP.primary
           )}
         >
-          <Icon className="h-5 w-5" strokeWidth={2} />
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
         </div>
       </CardHeader>
       <CardContent className="pb-6">
-        <div className={cn("text-3xl font-bold tabular-nums tracking-tight break-words", METRIC_VALUE_COLOR_MAP[color] || "text-foreground")}>
+        <div className={cn("text-2xl font-bold tabular-nums tracking-tight break-words", METRIC_VALUE_COLOR_MAP[color] || "text-foreground")}>
           {value}
         </div>
       </CardContent>

@@ -97,7 +97,7 @@ export const usersApi = {
 
 export const crmApi = {
   getGroups: (token: string) =>
-    apiFetch<CustomerGroup[]>(`/customer-groups?_t=${Date.now()}`, { token }),
+    apiFetch<CustomerGroup[]>('/customer-groups', { token }),
 
   createGroup: (token: string, data: Partial<CustomerGroup>) =>
     apiFetch<CustomerGroup>('/customer-groups', { method: 'POST', token, body: data }),

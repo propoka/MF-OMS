@@ -36,6 +36,9 @@ RUN apk add --no-cache openssl && npm install -g pnpm@9
 
 WORKDIR /app
 
+# Thiết lập môi trường production
+ENV NODE_ENV=production
+
 # Copy only production artifacts
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
 COPY --from=builder /app/packages/database/package.json packages/database/
@@ -50,8 +53,13 @@ COPY --from=builder /app/packages/database/node_modules packages/database/node_m
 # Generate Prisma client in production (needed for runtime)
 RUN pnpm db:generate
 
+# Copy entrypoint script
+COPY apps/api/entrypoint.sh /app/apps/api/entrypoint.sh
+RUN chmod +x /app/apps/api/entrypoint.sh
+
 WORKDIR /app/apps/api
 
 EXPOSE 3001
 
-CMD ["node", "dist/main"]
+# Entrypoint chạy migrate deploy trước khi start server
+CMD ["sh", "entrypoint.sh"]

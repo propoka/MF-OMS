@@ -26,6 +26,7 @@ import { Loader2, Plus, Trash2, Search, ShoppingCart, Info, CheckCircle2, Packag
 import { Badge } from '@/components/ui/badge';
 import CustomerFormModal from '../customers/CustomerFormModal';
 import { toast } from 'sonner';
+import { GenerativeAvatar } from '@/components/ui/generative-avatar';
 
 interface OrderCreateSheetProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
     if (isOpen) {
       const token = getToken()!;
       const startSearch = undefined;
-      crmApi.getCustomers(token, { take: 50, search: initialCustomerId ? undefined : undefined }).then(res => {
+      crmApi.getCustomers(token, { take: 500, search: initialCustomerId ? undefined : undefined }).then(res => {
         let activeCustomers = res.data.filter(c => c.isActive);
         if (initialCustomerId) {
           crmApi.getCustomer(token, initialCustomerId).then(match => {
@@ -89,12 +90,13 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
           setCustomers(activeCustomers);
         }
       }).catch(console.error);
-      productsApi.getProducts(token, { take: 50 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(console.error);
+      productsApi.getProducts(token, { take: 500 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(console.error);
       
       // Reset state
       if (!initialCustomerId) {
         setCustomerId('');
         setSearchCustomer('');
+        setSelectedCustomerObj(null);
       } else {
         setCustomerId(initialCustomerId);
       }
@@ -110,7 +112,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
   useEffect(() => {
     if (!isOpen) return;
     const timer = setTimeout(() => {
-      productsApi.getProducts(getToken()!, { search: searchProduct, take: 50 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(() => {});
+      productsApi.getProducts(getToken()!, { search: searchProduct, take: 500 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
   }, [searchProduct, getToken, isOpen]);
@@ -119,7 +121,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
   useEffect(() => {
     if (!isOpen) return;
     const timer = setTimeout(() => {
-      crmApi.getCustomers(getToken()!, { search: searchCustomer, take: 50 }).then(res => setCustomers(res.data.filter(c => c.isActive))).catch(() => {});
+      crmApi.getCustomers(getToken()!, { search: searchCustomer, take: 500 }).then(res => setCustomers(res.data.filter(c => c.isActive))).catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
   }, [searchCustomer, getToken, isOpen]);
@@ -227,10 +229,19 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
   };
 
   // Quick Calcs — ưu tiên pricing engine nếu có
-  const tempSubtotal = pricingSubtotal != null ? pricingSubtotal : cart.reduce((acc, curr) => {
-    const qty = parseQty(curr.quantity);
-    return acc + Math.max(0, (curr.product.retailPrice * qty) - getAbsoluteDiscount(curr));
-  }, 0);
+  const { grossSubtotal, totalDiscount, tempSubtotal } = useMemo(() => {
+    let gross = 0;
+    let discount = 0;
+    cart.forEach(curr => {
+      const qty = parseQty(curr.quantity);
+      const unit = pricedItems[curr.product.id]?.unitPrice ?? curr.product.retailPrice;
+      gross += unit * qty;
+      discount += getAbsoluteDiscount(curr);
+    });
+    const sub = pricingSubtotal != null ? pricingSubtotal : Math.max(0, gross - discount);
+    return { grossSubtotal: gross, totalDiscount: discount, tempSubtotal: sub };
+  }, [cart, pricedItems, pricingSubtotal]);
+
   const tempTotal = tempSubtotal + (shippingFee || 0);
 
   const formatMoney = (amount: number) => {
@@ -265,12 +276,14 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <SheetContent className="!w-[95vw] !max-w-[1500px] p-0 overflow-hidden bg-background flex flex-col h-full" side="right">
-          <SheetHeader className="px-6 py-4 border-b bg-muted/40 text-left">
-          <SheetTitle className="text-xl">Tạo Đơn Hàng Mới</SheetTitle>
-          <SheetDescription>
-            Tìm khách hàng và chọn sản phẩm để lên đơn hàng trực tiếp tại đây.
-          </SheetDescription>
+        <SheetContent className="!w-[95vw] !max-w-[1500px] p-0 overflow-hidden bg-[#F8F9FA] flex flex-col h-full" side="right">
+          <SheetHeader className="px-8 pt-8 pb-2 text-left z-10 border-none bg-transparent flex flex-row items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <SheetTitle className="text-3xl font-bold tracking-tight text-foreground">Tạo đơn hàng mới</SheetTitle>
+            <SheetDescription className="text-muted-foreground mt-1 text-sm font-medium">
+              Tìm khách hàng và chọn sản phẩm để lên đơn hàng trực tiếp tại đây.
+            </SheetDescription>
+          </div>
         </SheetHeader>
         
         <div className="flex-1 overflow-y-auto py-4 px-6 flex flex-col gap-6">
@@ -280,22 +293,20 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
             
             {/* Lọc Khách hàng & Sản phẩm */}
             <div className="w-full lg:w-1/3 flex flex-col gap-6">
-              <div className="space-y-4 p-5 bg-card border rounded-xl shadow-sm">
-                <div className="flex items-center gap-2 text-foreground font-semibold justify-between border-b pb-3">
-                  <div className="flex items-center gap-2">
-                    <User size={18} className="text-primary shrink-0" />
-                    <h3>1. Khách hàng</h3>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setIsCustomerModalOpen(true)} className="h-8 px-2 text-primary hover:text-primary hover:bg-primary/10 focus-visible:ring-0">
+              <div className="relative z-20 bg-card border border-border/50 shadow-none rounded-[24px] flex flex-col">
+                <div className="flex flex-row items-center justify-between p-5 pb-2">
+                  <div className="text-sm font-semibold text-foreground">1. Khách hàng</div>
+                  <Button variant="ghost" size="sm" onClick={() => setIsCustomerModalOpen(true)} className="h-8 px-2 text-primary hover:bg-primary/10">
                     <Plus size={16} className="mr-1" /> Thêm mới
                   </Button>
                 </div>
                 
+                <div className="p-5 pt-2 space-y-4">
                 {!selectedCustomer ? (
                   <div className="relative">
                     <Input
                       placeholder="Tìm theo tên hoặc SĐT..."
-                      className="h-10 border-muted-foreground/20 shadow-sm"
+                      className="h-10 px-4 border-border/40 shadow-none bg-background/50 focus-visible:bg-background"
                       value={searchCustomer}
                       onChange={e => {
                         setSearchCustomer(e.target.value);
@@ -331,29 +342,37 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                     )}
                   </div>
                 ) : (
-                  <div className="bg-primary/10 w-full p-2.5 px-3 rounded-lg border border-primary/30 flex items-center justify-between shadow-sm">
-                    <div className="flex flex-col min-w-0 flex-1 pr-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <strong className="text-primary text-sm truncate max-w-full">{selectedCustomer.fullName}</strong>
-                        <Badge variant="secondary" className="bg-primary/20/80 text-primary hover:bg-primary/30/80 px-2 py-0 mx-1">{selectedCustomer.group?.name || 'Khách lẻ'}</Badge>
+                  <div className="bg-transparent w-full p-2.5 rounded-[16px] border border-white/60 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0 pr-3 flex-1">
+                      <div className="shrink-0">
+                        <GenerativeAvatar name={selectedCustomer.fullName || 'User'} size={40} />
                       </div>
-                      <div className="text-xs text-primary/80 mt-0.5">{selectedCustomer.phone}</div>
+                      <div className="flex flex-col min-w-0 gap-1.5 flex-1">
+                        <span className="font-semibold text-foreground leading-tight truncate">{selectedCustomer.fullName}</span>
+                        {selectedCustomer.group?.name && (
+                           <Badge variant="secondary" className="font-medium text-[10.5px] w-fit px-1.5 py-0 bg-primary/5 text-primary border-primary/10">
+                             {selectedCustomer.group.name}
+                           </Badge>
+                        )}
+                      </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSelectedCustomerObj(null); setSearchCustomer('');}} className="h-7 w-7 p-0 shrink-0 text-primary hover:text-primary hover:bg-primary/20 rounded-full focus-visible:ring-0">
+                    <Button variant="ghost" size="sm" onClick={() => {setCustomerId(''); setSelectedCustomerObj(null); setSearchCustomer('');}} className="h-8 w-8 p-0 shrink-0 text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-full focus-visible:ring-0">
                       <X size={16} />
                     </Button>
                   </div>
                 )}
+                </div>
               </div>
 
-              <div className="space-y-4 p-5 bg-card border rounded-xl shadow-sm flex-1 flex flex-col min-h-[300px]">
-                <div className="flex items-center gap-2 text-foreground font-semibold border-b pb-3">
-                  <PackageOpen size={18} className="text-primary shrink-0" />
-                  <h3>2. Tìm Sản phẩm</h3>
+              <div className="bg-card border border-border/50 shadow-none rounded-[24px] flex-1 flex flex-col min-h-[300px]">
+                <div className="flex flex-row items-center justify-between p-5 pb-2">
+                  <div className="text-sm font-semibold text-foreground">2. Tìm Sản phẩm</div>
                 </div>
+                
+                <div className="p-5 pt-2 space-y-4 flex-1 flex flex-col overflow-hidden">
                 <Input 
                   placeholder="Nhấn chuỗi SKU hoặc tên..." 
-                  className="h-10 border-muted-foreground/20 shadow-sm"
+                  className="h-10 px-4 border-border/40 shadow-none bg-background/50 focus-visible:bg-background"
                   value={searchProduct}
                   onChange={e => setSearchProduct(e.target.value)}
                 />
@@ -362,7 +381,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                   {products.map(p => (
                     <div 
                       key={p.id} 
-                      className="border border-muted/60 bg-card p-2.5 px-3 rounded-lg flex items-center justify-between hover:border-primary hover:bg-primary/10 cursor-pointer transition-colors group shadow-sm" 
+                      className="border border-transparent hover:border-border/60 bg-transparent p-2.5 px-4 rounded-xl flex items-center justify-between hover:bg-muted/50 cursor-pointer transition-all group" 
                       onClick={() => addToCart(p)}
                     >
                       <div className="flex flex-col min-w-0 pr-3 flex-1">
@@ -378,15 +397,18 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                     </div>
                   ))}
                 </div>
+                </div>
               </div>
             </div>
 
             {/* Cột bên phải hiển thị giỏ hàng (Danh sách) & Thanh toán */}
-            <div className="w-full lg:w-2/3 border rounded-xl shadow-sm flex flex-col bg-card overflow-hidden h-full max-h-full">
-              <div className="p-4 border-b bg-muted/40 text-foreground font-semibold flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-primary" />
-                  <h3>Giỏ hàng ({cart.length} mục - Tổng SL: {cart.reduce((acc, curr) => acc + parseQty(curr.quantity), 0)})</h3>
+            <div className="w-full lg:w-2/3 border border-border/50 shadow-none rounded-[24px] flex flex-col bg-card overflow-hidden h-full max-h-full">
+              <div className="flex flex-row items-center justify-between p-5 pb-4 border-b border-border/40 shrink-0">
+                <div className="text-sm font-semibold text-foreground">Giỏ hàng</div>
+                <div className="text-sm text-muted-foreground font-medium flex items-center">
+                  <span className="tabular-nums">{cart.length}</span> <span className="ml-1">sản phẩm</span>
+                  <span className="mx-2 opacity-40">•</span> 
+                  <span>Tổng số lượng:</span> <span className="ml-1 tabular-nums">{cart.reduce((acc, curr) => acc + parseQty(curr.quantity), 0)}</span>
                 </div>
               </div>
               <div className="flex-1 overflow-auto relative">
@@ -397,16 +419,16 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                   </div>
                 ) : (
                   <table className="w-full text-sm">
-                    <thead className="bg-muted sticky top-0 z-20 text-muted-foreground shadow-sm">
-                      <tr>
-                        <th className="text-left font-semibold p-3 px-4 border-b">STT</th>
-                        <th className="text-left font-semibold p-3 border-b">Sản phẩm</th>
-                        <th className="text-center font-semibold p-3 border-b">Đ/V</th>
-                        <th className="text-right font-semibold p-3 border-b">Đơn giá tạm</th>
-                        <th className="text-center font-semibold p-3 border-b w-[120px]">Số lượng</th>
-                        <th className="text-center font-semibold p-3 border-b w-[120px]">Chiết khấu</th>
-                        <th className="text-right font-semibold p-3 border-b">Thành tiền</th>
-                        <th className="text-center font-semibold p-3 px-4 border-b w-[60px]">X</th>
+                    <thead className="bg-card sticky top-0 z-20">
+                      <tr className="border-b border-border/40">
+                        <th className="text-left uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4 px-4">STT</th>
+                        <th className="text-left uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4">Sản phẩm</th>
+                        <th className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4">Đ/V</th>
+                        <th className="text-right uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4">Đơn giá tạm</th>
+                        <th className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4 w-[120px]">Số lượng</th>
+                        <th className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4 w-[120px]">Chiết khấu</th>
+                        <th className="text-right uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4">Thành tiền</th>
+                        <th className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pt-4 px-4 w-[60px]"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -426,7 +448,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                                 <div className="flex flex-col items-end gap-0.5">
                                   <span>{formatMoney(displayPrice)}</span>
                                   {priced && priced.source !== 'RETAIL' && (
-                                    <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${priced.source === 'SPECIAL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}
+                                    <Badge variant="outline" className={`text-[9px] uppercase tracking-wider px-1.5 py-0 shadow-none font-bold border-border/50 ${priced.source === 'SPECIAL' ? 'bg-foreground/5 text-foreground' : 'bg-muted/30 text-muted-foreground'}`}
                                       title={priced.note}
                                     >{priced.source === 'SPECIAL' ? 'Giá ĐB' : 'Nhóm'}</Badge>
                                   )}
@@ -434,22 +456,22 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                               );
                             })()}
                           </td>
-                          <td className="p-3">
-                            <div className="flex items-center justify-center gap-1 border rounded-md p-0.5 max-w-[100px] mx-auto">
-                              <Button variant="ghost" size="icon" className="h-6 w-6 rounded-sm" onClick={() => updateQuantity(c.product.id, parseQty(c.quantity) - 1)}>-</Button>
+                          <td className="py-2 px-3">
+                            <div className="flex items-center justify-center gap-0.5 border border-transparent bg-muted/30 rounded-lg p-0.5 max-w-[100px] mx-auto transition-all hover:bg-muted/40 focus-within:bg-background focus-within:border-border/50 focus-within:shadow-sm">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-background hover:shadow-sm text-muted-foreground focus-visible:ring-0" onClick={() => updateQuantity(c.product.id, parseQty(c.quantity) - 1)}>-</Button>
                               <Input 
                                 type="text" 
-                                className="h-6 w-10 text-center p-0 border-0 shadow-none focus-visible:ring-0 text-sm" 
+                                className="h-7 w-10 text-center p-0 border-0 bg-transparent shadow-none focus-visible:ring-0 text-sm font-medium" 
                                 value={c.quantity === 0 ? '' : c.quantity} 
                                 onChange={e => {
                                   updateQuantity(c.product.id, e.target.value);
                                 }}
                               />
-                              <Button variant="ghost" size="icon" className="h-6 w-6 rounded-sm" onClick={() => updateQuantity(c.product.id, parseQty(c.quantity) + 1)}>+</Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md hover:bg-background hover:shadow-sm text-muted-foreground focus-visible:ring-0" onClick={() => updateQuantity(c.product.id, parseQty(c.quantity) + 1)}>+</Button>
                             </div>
                           </td>
-                          <td className="p-3 text-center">
-                             <div className="flex items-center mx-auto w-[120px] bg-background border shadow-sm rounded-md focus-within:ring-1 focus-within:ring-primary overflow-hidden text-sm">
+                          <td className="py-2 px-3 text-center">
+                             <div className="flex items-center mx-auto w-[130px] border border-transparent bg-muted/30 rounded-lg p-0.5 transition-all focus-within:bg-background focus-within:border-border/50 focus-within:shadow-sm">
                                 <Input 
                                   type="text" 
                                   value={c.discount === 0 ? '' : (c.discountType === 'percent' ? c.discount : new Intl.NumberFormat('vi-VN').format(c.discount))} 
@@ -464,17 +486,17 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                                     }
                                   }} 
                                   placeholder="0" 
-                                  className="h-8 border-0 shadow-none text-right focus-visible:ring-0 pr-1 rounded-none flex-1 min-w-0" 
+                                  className="h-7 border-0 shadow-none bg-transparent text-right focus-visible:ring-0 px-2 rounded flex-1 min-w-0 font-medium" 
                                 />
-                                <div className="flex shrink-0 border-l bg-muted/60">
+                                <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-full shrink-0">
                                   <button 
                                     title="Tính theo %"
-                                    className={`px-1.5 py-1 text-[11px] font-semibold transition-colors ${c.discountType === 'percent' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+                                    className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold transition-all ${c.discountType === 'percent' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                     onClick={() => updateDiscountType(c.product.id, 'percent')}
                                   >%</button>
                                   <button 
                                     title="Tính theo VNĐ"
-                                    className={`px-1.5 py-1 text-[11px] font-semibold transition-colors ${c.discountType !== 'percent' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+                                    className={`w-7 h-7 flex items-center justify-center rounded-full text-[11px] font-bold transition-all ${c.discountType !== 'percent' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                     onClick={() => updateDiscountType(c.product.id, 'amount')}
                                   >đ</button>
                                 </div>
@@ -500,16 +522,23 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
               </div>
 
               {/* DOCKED CHECKOUT FOOTER (1 LINE) */}
-              <div className="border-t bg-muted/20 p-3 px-5 shrink-0 flex items-center justify-between shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)] z-30">
+              <div className="border-t border-border/40 bg-card p-4 px-6 shrink-0 flex items-center justify-between z-30">
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-xs font-medium">Tạm tính:</span>
-                  <span className="font-semibold text-foreground text-sm">{formatMoney(tempSubtotal)}</span>
+                  <span className="text-muted-foreground text-[13px] font-medium">Tiền hàng:</span>
+                  <span className="font-semibold text-foreground text-sm tabular-nums">{formatMoney(grossSubtotal)}</span>
                 </div>
+
+                {totalDiscount > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-[13px] font-medium">Chiết khấu (-):</span>
+                    <span className="font-bold text-red-600 text-[13px] tabular-nums">-{formatMoney(totalDiscount)}</span>
+                  </div>
+                )}
                 
                 <div className="flex items-center gap-2">
-                  <Label className="text-muted-foreground text-xs font-semibold">Phí Ship (+)</Label>
-                  <div className="relative w-28">
+                  <Label className="text-muted-foreground text-[13px] font-medium">Phí Ship (+)</Label>
+                  <div className="relative w-28 flex items-center bg-muted/20 border border-transparent focus-within:bg-background focus-within:border-border/50 focus-within:shadow-sm rounded-lg p-0.5 transition-all">
                     <Input 
                       type="text" 
                       value={!shippingFee ? '' : new Intl.NumberFormat('vi-VN').format(shippingFee)} 
@@ -518,15 +547,15 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                         setShippingFee(isNaN(numericValue) ? 0 : numericValue);
                       }} 
                       placeholder="0" 
-                      className="h-8 text-sm text-right pr-6 bg-background shadow-sm font-semibold border-primary/30 focus-visible:ring-primary" 
+                      className="h-7 border-0 bg-transparent shadow-none text-sm text-right pr-6 focus-visible:ring-0 font-semibold" 
                     />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium text-primary">đ</span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[11px] font-bold">đ</span>
                   </div>
                 </div>
 
-                <div className="flex items-baseline gap-2 bg-primary/5 p-1.5 px-3 rounded-lg border border-primary/20">
-                  <span className="font-bold text-primary text-sm tracking-wide">Tổng đơn:</span>
-                  <span className="font-extrabold text-lg text-primary tracking-tight">{formatMoney(tempTotal)}</span>
+                <div className="flex items-center gap-2 border-l border-border/40 pl-6 h-6">
+                  <span className="font-semibold text-muted-foreground text-sm">Tổng đơn:</span>
+                  <span className="font-bold text-xl text-primary tracking-tight tabular-nums">{formatMoney(tempTotal)}</span>
                 </div>
 
               </div>
@@ -535,7 +564,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
           </div>
         </div>
         
-        <SheetFooter className="px-6 py-4 border-t bg-muted/10 shrink-0 text-sm">
+        <SheetFooter className="px-8 py-5 border-t border-border/40 bg-muted/20 shrink-0 text-sm">
           <div className="flex flex-col sm:flex-row w-full justify-between items-center gap-4">
             <div className="text-muted-foreground hidden sm:flex items-center gap-2">
                 {!customerId ? <><Info size={16}/> Vui lòng chọn khách hàng để lưu đơn</> : 
@@ -544,16 +573,20 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
                 }
             </div>
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="h-10 px-6 font-medium shadow-sm w-full sm:w-auto">
+              <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="h-11 px-6 font-medium bg-white/50 border-border/40 hover:bg-white shadow-sm w-full sm:w-auto rounded-full transition-all duration-300">
                 Huỷ bỏ
               </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting || !customerId || cart.length === 0} className="bg-primary hover:bg-primary/90 text-white min-w-[180px] shadow-md h-10 w-full sm:w-auto">
+              <Button 
+                onClick={handleSubmit} 
+                disabled={isSubmitting || !customerId || cart.length === 0} 
+                className="group relative overflow-hidden bg-neutral-950 hover:bg-black text-white shadow-[0_4px_14px_0_rgb(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.23)] transition-all duration-300 font-bold px-8 h-11 rounded-full min-w-[180px] w-full sm:w-auto disabled:opacity-50 disabled:pointer-events-none"
+              >
                 {isSubmitting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin opacity-80" />
                 ) : (
-                  <Check className="mr-2 h-4 w-4" />
+                  <Check className="mr-2 h-5 w-5 opacity-90 group-hover:rotate-[360deg] transition-all duration-700 ease-out" />
                 )}
-                Chốt Đơn
+                <span>Tạo đơn hàng</span>
               </Button>
             </div>
           </div>
@@ -582,28 +615,31 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
       }}
     />
     <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-      <DialogContent className="glass sm:max-w-md text-center">
-        <div className="flex flex-col items-center justify-center py-6">
-          <CheckCircle2 className="h-16 w-16 text-primary mb-4" />
-          <DialogTitle className="text-2xl font-bold text-primary mb-2">Chốt đơn thành công!</DialogTitle>
-          <DialogDescription className="text-base">
-            Đơn hàng của bạn đã được ghi nhận vào hệ thống.
+      <DialogContent className="sm:max-w-md bg-card border-border/50 shadow-2xl p-8 sm:rounded-[24px] text-center">
+        <div className="flex flex-col items-center justify-center py-2">
+          <div className="h-20 w-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6">
+            <Check className="h-10 w-10 text-green-600" strokeWidth={3} />
+          </div>
+          <DialogTitle className="text-xl font-bold text-foreground mb-2">Đã tạo đơn hàng thành công</DialogTitle>
+          <DialogDescription className="text-[15px] text-muted-foreground leading-relaxed">
+            Đơn hàng mới đã được lưu thành công vào hệ thống.
           </DialogDescription>
         </div>
-        <DialogFooter className="sm:justify-center flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => { 
+        <div className="flex sm:justify-center flex-col sm:flex-row gap-3 mt-4">
+          <Button variant="outline" className="h-11 rounded-full px-8 bg-muted/20 border-border/50 hover:bg-muted/50 font-medium w-full sm:w-auto" onClick={() => { 
             setShowSuccessModal(false); 
             setCart([]); 
             setCustomerId(''); 
+            setSelectedCustomerObj(null);
             setShippingFee(0); 
             setSearchCustomer('');
           }}>
             Tạo đơn mới
           </Button>
-          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => { setShowSuccessModal(false); onSuccess(); }}>
+          <Button className="h-11 rounded-full px-8 bg-neutral-950 hover:bg-black text-white font-semibold shadow-md w-full sm:w-auto" onClick={() => { setShowSuccessModal(false); onSuccess(); }}>
             Về danh sách
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   </>

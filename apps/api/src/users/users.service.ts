@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -94,6 +94,15 @@ export class UsersService {
   }
 
   async remove(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { _count: { select: { orders: true } } },
+    });
+    if (!user) throw new NotFoundException('Không tìm thấy người dùng');
+    if (user._count.orders > 0) {
+      throw new BadRequestException('Không thể xóa. Người dùng này đã khởi tạo đơn hàng. Vui lòng vô hiệu hóa thay vì xóa.');
+    }
+
     return this.prisma.user.delete({
       where: { id },
     });

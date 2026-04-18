@@ -40,3 +40,4 @@ B?n sao*
 # Database backups - never commit to public/ or repo
 *.sql
 *.dump
+!apps/web/public/oms_db_backup.sql

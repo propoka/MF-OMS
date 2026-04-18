@@ -19,7 +19,7 @@ import { Edit, Pencil, Plus, Inbox, Users, Trash2, AlertTriangle, Loader2, Alert
 import CustomerGroupFormModal from '@/components/customers/CustomerGroupFormModal';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 
 export default function CustomerGroupsPage() {
   const { getToken, user } = useAuth();
@@ -84,76 +84,83 @@ export default function CustomerGroupsPage() {
         <div className="flex items-center gap-3">
           <Button 
             onClick={() => handleOpenModal()}
-            className="shadow-md hover:shadow-lg transition-all duration-200 font-semibold px-5"
+            className="group relative overflow-hidden bg-neutral-900/85 hover:bg-black/90 backdrop-blur-xl text-white border border-white/20 hover:border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 h-11 rounded-full px-6"
           >
-            <Plus className="mr-2 h-5 w-5" />
-            Tạo Nhóm Mới
+            <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500 pointer-events-none"></div>
+            <Plus className="mr-2 h-5 w-5 group-hover:rotate-90 group-hover:scale-110 transition-all duration-500" />
+            <span className="font-semibold text-sm">Tạo Nhóm Mới</span>
           </Button>
         </div>
       </div>
 
-      <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-        <CardContent className="p-0">
-          <div className="w-full overflow-auto">
-            <Table>
-              <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead className="w-[250px] px-6 text-foreground font-semibold">Tên Nhóm</TableHead>
-              <TableHead className="px-6 text-foreground font-semibold">Mô tả</TableHead>
-              <TableHead className="text-center px-6 text-foreground font-semibold">Số lượng KH</TableHead>
-              <TableHead className="text-right px-6 text-foreground font-semibold">Thao tác</TableHead>
+      <GlassCard className="mb-4">
+        <div className="w-full overflow-auto custom-scrollbar">
+          <Table>
+            <TableHeader>
+            <TableRow className="border-b border-border/40 hover:bg-transparent">
+              <TableHead className="w-[250px] uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pl-6 lg:pl-8">Tên Nhóm</TableHead>
+              <TableHead className="uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4">Mô tả</TableHead>
+              <TableHead className="text-center uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4">Số lượng KH</TableHead>
+              <TableHead className="text-right uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pr-6 lg:pr-8">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <TableRow key={i} className="animate-pulse">
-                  <TableCell className="px-6 py-4"><div className="h-4 bg-muted rounded w-32"></div></TableCell>
-                  <TableCell className="px-6"><div className="h-4 bg-muted rounded w-48"></div></TableCell>
-                  <TableCell className="px-6"><div className="h-4 bg-muted rounded w-12 mx-auto"></div></TableCell>
-                  <TableCell className="px-6"><div className="h-8 bg-muted rounded w-8 ml-auto"></div></TableCell>
+                <TableRow key={i} className="animate-pulse border-border/30">
+                  <TableCell className="py-4 pl-6 lg:pl-8"><div className="h-4 bg-muted/50 rounded w-32"></div></TableCell>
+                  <TableCell className="py-4"><div className="h-4 bg-muted/50 rounded w-48"></div></TableCell>
+                  <TableCell className="py-4"><div className="h-4 bg-muted/50 rounded w-12 mx-auto"></div></TableCell>
+                  <TableCell className="py-4 pr-6 lg:pr-8"><div className="h-8 bg-muted/50 rounded-lg w-16 ml-auto"></div></TableCell>
                 </TableRow>
               ))
             ) : groups.length === 0 ? (
-              <TableRow>
+              <TableRow className="border-border/30">
                 <TableCell colSpan={4} className="h-48 text-center">
                   <div className="flex flex-col items-center justify-center text-muted-foreground">
-                    <Inbox className="h-10 w-10 mb-4 opacity-50" />
-                    <p>Chưa có nhóm khách hàng nào.</p>
+                    <Inbox className="h-10 w-10 mb-4 opacity-30" />
+                    <p className="text-[13px] font-medium tracking-tight">Chưa có nhóm khách hàng nào.</p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               groups.map(group => (
-                <TableRow key={group.id}>
-                  <TableCell className="px-6 py-4">
-                    <div className="font-semibold flex items-center gap-2 text-foreground">
-                      {group.name}
-                      {group.isDefault && <Badge variant="secondary">Mặc định</Badge>}
+                <TableRow key={group.id} className="group hover:bg-muted/40 transition-colors border-border/30">
+                  <TableCell className="py-4 align-top pl-6 lg:pl-8">
+                    <div className="flex flex-col gap-1.5">
+                      <span className="font-medium text-[13px] text-foreground tracking-tight whitespace-nowrap">
+                        {group.name}
+                      </span>
+                      {group.isDefault && <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground opacity-80 w-fit rounded bg-muted/50 px-1.5 py-0.5">Mặc định</span>}
                     </div>
                   </TableCell>
-                  <TableCell className="px-6 text-muted-foreground">{group.description || <span className="italic text-muted-foreground/60">Chưa có mô tả</span>}</TableCell>
-                  <TableCell className="px-6 text-center">
-                    <Badge variant="outline" className="font-semibold">
-                      <Users className="h-3 w-3 mr-1" />
-                      {group._count?.customers || 0}
-                    </Badge>
+                  <TableCell className="py-4 align-top text-[13px] text-muted-foreground">{group.description || <span className="text-[11px] text-muted-foreground/60 font-medium">Chưa có mô tả</span>}</TableCell>
+                  <TableCell className="py-4 align-top text-center">
+                    <div className="flex items-center justify-center">
+                      <Badge variant="outline" className="font-medium text-[11px] bg-muted/30 border-border/40 text-foreground px-2 flex items-center h-5">
+                        <Users className="h-3 w-3 mr-1.5 opacity-70" />
+                        {group._count?.customers || 0}
+                      </Badge>
+                    </div>
                   </TableCell>
-                  <TableCell className="px-6 text-right">
+                  <TableCell className="py-4 align-top pr-6 lg:pr-8 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleOpenModal(group)} className="hover:text-primary transition-colors">
-                        <Pencil className="mr-2 h-4 w-4" /> Cập nhật
-                      </Button>
+                      <button 
+                        onClick={() => handleOpenModal(group)} 
+                        className="h-8 w-8 rounded-lg shadow-sm border border-border/40 text-muted-foreground transition-all flex items-center justify-center hover:bg-white hover:text-primary"
+                        title="Cập nhật"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
                       {user?.role === 'ADMIN' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <button 
                           onClick={() => setDeleteTarget({ id: group.id, name: group.name })} 
                           disabled={group.isDefault || (group._count?.customers || 0) > 0}
-                          className="text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                          className="h-8 w-8 rounded-lg shadow-sm border border-border/40 text-muted-foreground transition-all flex items-center justify-center hover:bg-destructive/10 hover:text-destructive disabled:opacity-50 disabled:pointer-events-none"
+                          title="Xóa"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </button>
                       )}
                     </div>
                   </TableCell>
@@ -163,8 +170,7 @@ export default function CustomerGroupsPage() {
             </TableBody>
           </Table>
         </div>
-        </CardContent>
-      </Card>
+      </GlassCard>
       
       <CustomerGroupFormModal
         isOpen={isModalOpen}

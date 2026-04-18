@@ -114,6 +114,7 @@ model Customer {
   orders        Order[]
 
   // Các chỉ số read-only được tính động qua query, không lưu DB
+  @@index([groupId])  // Tối ưu lọc khách theo nhóm
   @@map("customers")
 }
 
@@ -177,6 +178,7 @@ model Product {
 
   category       ProductCategory? @relation(fields: [categoryId], references: [id])
 
+  @@index([categoryId])  // Tối ưu lọc sản phẩm theo danh mục
   @@map("products")
 }
 
@@ -228,6 +230,7 @@ model Order {
   notes            String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
 
   customer     Customer     @relation(fields: [customerId], references: [id])
   createdBy    User         @relation(fields: [createdById], references: [id])

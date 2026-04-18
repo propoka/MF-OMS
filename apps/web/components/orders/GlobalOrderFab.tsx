@@ -26,16 +26,25 @@ export default function GlobalOrderFab() {
 
   return (
     <>
-      <div className="fixed bottom-8 right-8 z-40">
-        <Button
+      <div className="fixed bottom-8 right-8 z-40 print:hidden">
+        <button
           onClick={() => setIsOpen(true)}
-          className="h-[52px] px-6 rounded-full flex items-center justify-center gap-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 dark:text-zinc-900 text-zinc-50 border border-zinc-700 shadow-[0_12px_36px_rgb(0,0,0,0.15)] hover:shadow-[0_16px_40px_rgb(0,0,0,0.2)] transition-all duration-300 ease-out hover:-translate-y-1"
+          className="group flex h-[54px] rounded-full items-center bg-zinc-900 text-zinc-50 border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.15)] hover:shadow-[0_16px_40px_rgb(0,0,0,0.25)] hover:bg-[#1a1a1a] transition-all duration-500 hover:-translate-y-1.5 overflow-hidden relative"
         >
-          <Plus size={20} className="stroke-[2.5] opacity-90" />
-          <span className="font-semibold tracking-[0.02em] text-[14px] whitespace-nowrap">
-            Lên Đơn Mới
-          </span>
-        </Button>
+          <div className="absolute inset-0 rounded-full border border-white/5 group-hover:border-white/20 transition-colors pointer-events-none" />
+          
+          <div className="flex w-[54px] min-w-[54px] h-full shrink-0 items-center justify-center">
+            <Plus size={22} className="stroke-[2.5] group-hover:rotate-90 transition-transform duration-500 ease-out" />
+          </div>
+
+          <div className="grid grid-cols-[0fr] group-hover:grid-cols-[1fr] transition-[grid-template-columns] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]">
+            <div className="overflow-hidden flex items-center h-full">
+               <span className="font-semibold tracking-wide text-[14px] pr-6 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 block transform translate-x-2 group-hover:translate-x-0">
+                Lên Đơn Mới
+               </span>
+            </div>
+          </div>
+        </button>
       </div>
 
       <OrderCreateSheet 

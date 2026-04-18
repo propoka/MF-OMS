@@ -18,6 +18,15 @@ jobs:
             set -e
             cd /root/MF-OMS
             git pull origin main
+
+            # Build & deploy containers (API entrypoint auto-runs prisma migrate deploy)
             docker compose -f docker-compose.prod.yml build
             docker compose -f docker-compose.prod.yml up -d
+
+            # Cập nhật nginx config nếu có thay đổi
+            cp -f nginx/oms.xuanlockontum.com.conf /etc/nginx/sites-available/oms.xuanlockontum.com.conf 2>/dev/null || true
+            nginx -t && systemctl reload nginx || true
+
+            # Dọn dẹp Docker images cũ
             docker image prune -af --filter "until=24h"
+

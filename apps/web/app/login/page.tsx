@@ -123,8 +123,8 @@ const uiverseStyles = `
 
 /* Gooey Loader */
 .loader {
-  --c1: #ffbf48;
-  --c2: #be4a1d;
+  --c1: #683c14;
+  --c2: #a26f48;
   --t: 2s;
   --size: 1.2;
   position: relative;
@@ -256,10 +256,7 @@ function LoginForm() {
       await login(email, password);
       setButtonState('success');
       
-      // Delay hợp lý (2500ms) hiển thị siêu Loader để tạo cảm giác load dữ liệu nặng
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 2500);
+      router.push('/dashboard');
       
     } catch (err: any) {
       setError(err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
@@ -412,37 +409,6 @@ function LoginForm() {
           </div>
         </motion.div>
       </div>
-
-      {/* Gooey Super Loader Overlay */}
-      <AnimatePresence>
-        {buttonState === 'success' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
-            className="fixed inset-0 z-[9999] bg-white/95 backdrop-blur-2xl flex flex-col items-center justify-center"
-          >
-            <div className="loader">
-              <div className="loader-inner">
-                <div className="blob b1"></div>
-                <div className="blob b2"></div>
-                <div className="blob b3"></div>
-                <div className="blob b4"></div>
-                <div className="blob b5"></div>
-              </div>
-            </div>
-            
-            <motion.p 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-              className="text-[#be4a1d] font-bold mt-10 text-sm tracking-[0.2em] uppercase"
-            >
-              Đang tải...
-            </motion.p>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </main>
   );

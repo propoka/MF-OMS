@@ -451,7 +451,7 @@ export default function ReportsPage() {
         <GlassCard className="border border-white/40 shadow-sm shadow-black/5 rounded-[24px] bg-white/40 backdrop-blur-xl print:hidden overflow-hidden mb-6 p-2 flex flex-col xl:flex-row gap-3 items-center justify-between" contentClassName="p-0 flex flex-col xl:flex-row gap-3 items-center justify-between w-full border-none shadow-none bg-transparent">
           <div className="flex flex-col lg:flex-row gap-2 lg:gap-3 items-center w-full xl:w-auto">
             {/* Preset Quick Filters as Pills */}
-            <div className="flex items-center bg-white/50 p-1 rounded-xl border border-white/40 shadow-sm shadow-black/5 h-10 w-full lg:w-auto overflow-x-auto custom-scrollbar relative">
+            <div className="flex items-center bg-white/50 p-1 rounded-xl border border-white/40 shadow-sm shadow-black/5 h-11 w-full lg:w-auto overflow-x-auto custom-scrollbar relative">
               {[
                 { id: "today", label: "Hôm nay" },
                 { id: "yesterday", label: "Hôm qua" },
@@ -487,7 +487,7 @@ export default function ReportsPage() {
             {/* Date Range & Status - Pill Shape Integration */}
             <div className="flex items-center gap-2 lg:gap-3">
               {/* Unified Date Pill */}
-              <div className="flex items-center bg-white/50 border border-white/40 rounded-xl shadow-sm shadow-black/5 h-10 divide-x divide-white/40 relative">
+              <div className="flex items-center bg-white/50 border border-white/40 rounded-xl shadow-sm shadow-black/5 h-11 divide-x divide-white/40 relative">
                 <Input
                   type="date"
                   value={startDate}
@@ -512,7 +512,7 @@ export default function ReportsPage() {
               </div>
 
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px] md:w-[175px] lg:w-[185px] h-10 bg-white/50 border-white/40 rounded-xl text-[13px] tracking-tight font-medium focus:ring-1 focus:ring-black/10 transition-all shadow-sm shadow-black/5">
+                <SelectTrigger className="w-[160px] md:w-[175px] lg:w-[185px] !h-11 bg-white/50 border-white/40 rounded-xl text-[13px] tracking-tight font-medium focus:ring-1 focus:ring-black/10 transition-all shadow-sm shadow-black/5">
                   <SelectValue placeholder="Trạng thái">
                     <div className="flex items-center gap-2">
                       {statusFilter === "ALL" ? (
@@ -561,7 +561,7 @@ export default function ReportsPage() {
               <Button
                 onClick={() => fetchReport()}
                 disabled={isLoading}
-                className="h-10 w-10 p-0 rounded-xl bg-white/50 hover:bg-white backdrop-blur-md border border-white/40 text-foreground/70 hover:text-foreground shadow-sm shadow-black/5 transition-all hover:shadow-md hover:-translate-y-0.5 ml-1 flex-shrink-0"
+                className="h-11 w-11 p-0 rounded-xl bg-white/50 hover:bg-white backdrop-blur-md border border-white/40 text-foreground/70 hover:text-foreground shadow-sm shadow-black/5 transition-all hover:shadow-md hover:-translate-y-0.5 ml-1 flex-shrink-0"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -573,7 +573,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Ext Actions Dock */}
-          <div className="flex items-center gap-1 p-1 flex-shrink-0 bg-white/50 border border-white/40 rounded-xl shadow-sm shadow-black/5 h-10 self-end xl:self-auto">
+          <div className="flex items-center gap-1 p-1 flex-shrink-0 bg-white/50 border border-white/40 rounded-xl shadow-sm shadow-black/5 h-11 self-end xl:self-auto">
             <Button
               variant="ghost"
               size="sm"

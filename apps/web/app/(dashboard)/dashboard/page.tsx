@@ -318,7 +318,7 @@ export default function DashboardPage() {
                    const maxVal = Math.max(...data.topProducts.slice(0, 5).map((x:any)=>x.totalRevenue), 1);
                    const pct = (p.totalRevenue / maxVal) * 100;
                    return (
-                   <li key={p.sku + idx} className="p-3 rounded-xl hover:bg-white/60 hover:translate-x-1 hover:shadow-sm transition-all flex gap-4 items-center group">
+                   <li key={p.sku + idx} className="p-3 rounded-xl flex gap-4 items-center">
                      <div className="relative shrink-0">
                        <GenerativeAvatar name={p.name} size={42} />
                        <div className="absolute -left-2 -top-2 w-5 h-5 bg-background font-medium text-[10px] rounded-full flex items-center justify-center border border-border/80 shadow-sm text-muted-foreground">
@@ -363,7 +363,7 @@ export default function DashboardPage() {
                    const maxVal = Math.max(...data.topCustomers.slice(0, 5).map((x:any)=>x.totalRevenue), 1);
                    const pct = (c.totalRevenue / maxVal) * 100;
                    return (
-                   <li key={c.phone + idx} className="p-3 rounded-xl hover:bg-white/60 hover:translate-x-1 hover:shadow-sm transition-all flex gap-4 items-center group">
+                   <li key={c.phone + idx} className="p-3 rounded-xl flex gap-4 items-center">
                      <div className="relative shrink-0">
                        <GenerativeAvatar name={c.name || 'User'} size={42} />
                        <div className="absolute -left-2 -top-2 w-5 h-5 bg-background font-medium text-[10px] rounded-full flex items-center justify-center border border-border/80 shadow-sm text-muted-foreground">

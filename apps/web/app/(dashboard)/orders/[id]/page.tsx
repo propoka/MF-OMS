@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ORDER_STATUS_CONFIG } from '@/lib/constants';
 import * as xlsx from 'xlsx';
+import { GenerativeAvatar } from '@/components/ui/generative-avatar';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -229,7 +230,7 @@ export default function OrderDetailPage() {
         <div className="flex bg-white/50 border border-white/40 shadow-sm rounded-full p-1 h-11 shrink-0 w-full xl:w-auto">
           {normalizedStatus === 'PENDING' && (
             <Link href={`/orders/${id}/edit`} tabIndex={-1}>
-              <Button variant="ghost" className="rounded-full h-full px-3 text-muted-foreground hover:bg-white hover:text-primary transition-all duration-300" title="Chỉnh sửa">
+              <Button variant="ghost" className="rounded-full h-full px-3 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all duration-300" title="Chỉnh sửa">
                 <Pencil className="h-4 w-4" />
               </Button>
             </Link>
@@ -249,7 +250,7 @@ export default function OrderDetailPage() {
             <div className="w-[1px] h-full bg-border/40 mx-1"></div>
           )}
           
-          <Button variant="ghost" onClick={handleExportExcel} className="rounded-full h-full text-[13px] font-semibold px-4 hover:bg-emerald-50 hover:text-emerald-700 text-muted-foreground transition-all duration-300 flex-1 xl:flex-none">
+          <Button variant="ghost" onClick={handleExportExcel} className="rounded-full h-full text-[13px] font-bold px-5 text-primary hover:bg-primary/10 transition-all duration-300 flex-1 xl:flex-none">
             <FileDown className="mr-2 h-4 w-4" /> 
             <span className="hidden sm:inline">Xuất Excel</span>
           </Button>
@@ -273,12 +274,12 @@ export default function OrderDetailPage() {
         {/* LEFT: Order Items */}
         <div className="xl:col-span-2 print:col-span-3">
           <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden print:shadow-none print:border-none print:bg-transparent">
-            <CardHeader className="bg-white/40 border-b border-white/40 py-4 print:hidden flex flex-row items-center justify-between px-6">
+            <CardHeader className="border-b border-white/40 py-4 print:hidden flex flex-row items-center justify-between px-6">
               <CardTitle className="text-base flex items-center gap-2">
                 <Package className="h-4 w-4 text-primary" />
                 Chi tiết đơn hàng
               </CardTitle>
-              <Badge variant="outline" className="bg-background font-semibold">
+              <Badge variant="outline" className="bg-background font-medium text-muted-foreground shadow-none py-1.5 px-3">
                 {order.items?.length || 0} Sản phẩm
               </Badge>
             </CardHeader>
@@ -286,38 +287,38 @@ export default function OrderDetailPage() {
             <div className="print:hidden">
               <CardContent className="p-0">
               <Table>
-                <TableHeader className="bg-muted/20">
+                <TableHeader className="bg-transparent">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="px-6 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground w-auto">Sản phẩm</TableHead>
-                    <TableHead className="px-3 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center w-[70px]">ĐVT</TableHead>
-                    <TableHead className="px-3 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center w-[60px]">SL</TableHead>
-                    <TableHead className="px-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[110px]">Đơn giá</TableHead>
-                    <TableHead className="px-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[110px]">Chiết khấu</TableHead>
-                    <TableHead className="px-6 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[120px]">Thành tiền</TableHead>
+                    <TableHead className="px-6 py-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground w-auto">Sản phẩm</TableHead>
+                    <TableHead className="px-3 py-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center w-[70px]">ĐVT</TableHead>
+                    <TableHead className="px-3 py-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center w-[60px]">SL</TableHead>
+                    <TableHead className="px-4 py-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[110px]">Đơn giá</TableHead>
+                    <TableHead className="px-4 py-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[110px]">Chiết khấu</TableHead>
+                    <TableHead className="px-6 py-4 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-right w-[120px]">Thành tiền</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {order.items?.map((item, idx) => (
                     <TableRow key={idx} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="px-6 py-3">
+                      <TableCell className="px-6 py-4">
                         <div className="font-semibold text-foreground">{item.snapshotProductName}</div>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <span className="text-[10px] text-muted-foreground/80 tracking-wide font-medium">SKU: {item.snapshotProductSku}</span>
                           {item.pricingNote && <span className="text-[10px] text-primary/70 font-medium italic print:hidden">• {item.pricingNote}</span>}
                         </div>
                       </TableCell>
-                      <TableCell className="px-3 text-center text-sm text-muted-foreground">{item.snapshotProductUnit}</TableCell>
-                      <TableCell className="px-3 text-center font-bold text-foreground">{item.quantity}</TableCell>
-                      <TableCell className="px-4 text-right text-sm text-muted-foreground">{formatMoney(item.snapshotUnitPrice)}</TableCell>
-                      <TableCell className="px-4 text-right text-sm text-muted-foreground">{item.lineDiscount > 0 ? formatMoney(item.lineDiscount) : '-'}</TableCell>
-                      <TableCell className="px-6 text-right font-bold text-foreground">{formatMoney(item.lineTotal)}</TableCell>
+                      <TableCell className="px-3 py-4 text-center text-sm text-muted-foreground">{item.snapshotProductUnit}</TableCell>
+                      <TableCell className="px-3 py-4 text-center font-bold text-foreground">{item.quantity}</TableCell>
+                      <TableCell className="px-4 py-4 text-right text-sm text-muted-foreground">{formatMoney(item.snapshotUnitPrice)}</TableCell>
+                      <TableCell className="px-4 py-4 text-right text-sm text-muted-foreground">{item.lineDiscount > 0 ? formatMoney(item.lineDiscount) : '-'}</TableCell>
+                      <TableCell className="px-6 py-4 text-right font-bold text-foreground">{formatMoney(item.lineTotal)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
 
               {/* Summary Footer */}
-              <div className="px-6 py-5 bg-muted/20 border-t">
+              <div className="px-6 py-5 bg-transparent border-t">
                 <div className="flex justify-end">
                   <div className="w-full md:w-[320px] space-y-2">
                     <div className="flex justify-between text-sm text-muted-foreground">
@@ -541,7 +542,7 @@ export default function OrderDetailPage() {
           
           {/* Status Card */}
           <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden">
-            <CardHeader className="bg-white/40 border-b border-white/40 py-3 px-4">
+            <CardHeader className="border-b border-white/40 py-3 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Truck className="h-4 w-4 text-primary" />
                 Trạng thái
@@ -549,7 +550,7 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent className="p-4">
               <Select value={normalizedStatus} onValueChange={v => updateStatus(v)} disabled={isCancelled}>
-                <SelectTrigger className="w-full h-10 bg-background border-input transition-shadow">
+                <SelectTrigger className="w-full h-10 bg-transparent border-input transition-shadow rounded-full">
                   <SelectValue>
                     <div className="flex items-center gap-2 font-medium">
                       <span className={`w-2 h-2 rounded-full ${ORDER_STATUS_CONFIG[normalizedStatus]?.dot || 'bg-gray-500'}`}></span>
@@ -585,47 +586,32 @@ export default function OrderDetailPage() {
 
           {/* Customer Info Card */}
           <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden">
-            <CardHeader className="bg-white/40 border-b border-white/40 py-3 px-4 flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="border-b border-white/40 py-3 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <User className="h-4 w-4 text-primary" />
-                Thông tin Khách hàng
+                Khách hàng
               </CardTitle>
-              {order.customer?.group?.name && (
-                <Badge variant="secondary" className="font-medium text-xs">
-                  {order.customer.group.name}
-                </Badge>
-              )}
             </CardHeader>
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base border border-primary/20 shrink-0">
-                  {order.snapshotCustomerName ? order.snapshotCustomerName.charAt(0).toUpperCase() : 'K'}
+                <div className="shrink-0">
+                  <GenerativeAvatar name={order.snapshotCustomerName || 'User'} size={42} />
                 </div>
-                <div className="flex flex-col min-w-0">
+                <div className="flex flex-col min-w-0 gap-1.5">
                   <span className="font-semibold text-foreground leading-tight truncate">{order.snapshotCustomerName}</span>
-                  <div className="flex items-center gap-2 mt-1.5 text-xs">
-                    <div className="p-1 rounded-md bg-primary/10 text-primary shrink-0">
-                      <Phone className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="font-semibold text-foreground/80">{order.snapshotCustomerPhone || 'Trống'}</span>
-                  </div>
+                  {order.customer?.group?.name && (
+                    <Badge variant="secondary" className="font-medium text-[10.5px] w-fit px-1.5 py-0">
+                      {order.customer.group.name}
+                    </Badge>
+                  )}
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5 pt-2.5 border-t border-muted/50">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> Địa chỉ giao hàng
-                </span>
-                <span className="text-sm text-foreground leading-snug">
-                  {[order.customer?.addressDetail, order.customer?.wardName, order.customer?.provinceName].filter(Boolean).join(', ') || <span className="italic text-muted-foreground/60">Chưa cập nhật</span>}
-                </span>
               </div>
             </CardContent>
           </Card>
 
           {/* Activity Log Card */}
           <Card className="bg-white/40 backdrop-blur-3xl border border-white/40 shadow-sm shadow-black/5 rounded-[24px] overflow-hidden">
-            <CardHeader className="bg-white/40 border-b border-white/40 py-3 px-4">
+            <CardHeader className="border-b border-white/40 py-3 px-4">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <History className="h-4 w-4 text-primary" />
                 Nhật ký đơn hàng
@@ -759,34 +745,34 @@ export default function OrderDetailPage() {
             </div>
           </AlertDialogHeader>
           
-          <div className="py-2 space-y-4 w-full">
-            <div className="space-y-2 text-left">
+          <div className="py-2 space-y-5 w-full">
+            <div className="space-y-3 text-left">
               <label className="text-sm font-semibold leading-none text-foreground">
                 Lý do huỷ <span className="text-destructive">*</span>
               </label>
               <Select value={selectedCancelReasonId} onValueChange={(v) => setSelectedCancelReasonId(v ?? '')}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full h-10 bg-transparent border-input transition-shadow rounded-full">
                   <SelectValue placeholder="-- Chọn lý do --">
                     {selectedCancelReasonId 
                       ? cancelReasons.find(r => r.id === selectedCancelReasonId)?.label 
                       : "-- Chọn lý do --"}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-[16px] p-2 shadow-2xl border-white/60 backdrop-blur-3xl bg-white/70">
                   {cancelReasons.map(r => (
-                    <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                    <SelectItem key={r.id} value={r.id} className="rounded-xl py-2.5 px-3 mb-1 focus:bg-white/80 focus:text-foreground last:mb-0 transition-all cursor-pointer data-[state=checked]:bg-white data-[state=checked]:shadow-sm data-[state=checked]:shadow-black/5 border border-transparent data-[state=checked]:border-white/60">{r.label}</SelectItem>
                   ))}
-                  {cancelReasons.length === 0 && <SelectItem value="custom" disabled>Chưa có lý do nào được cài đặt...</SelectItem>}
+                  {cancelReasons.length === 0 && <SelectItem value="custom" disabled className="rounded-xl py-2.5 px-3 mb-1">Chưa có lý do nào được cài đặt...</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
             
-            <div className="space-y-2 text-left">
+            <div className="space-y-3 text-left">
               <label className="text-sm font-semibold leading-none text-foreground">
                 Ghi chú thêm <span className="text-muted-foreground font-normal whitespace-nowrap ml-1">(Tuỳ chọn)</span>
               </label>
               <textarea 
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" 
+                className="flex min-h-[80px] w-full rounded-2xl border border-input bg-transparent px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-shadow" 
                 placeholder="Nhập thêm chi tiết nguyên nhân huỷ đơn..."
                 value={cancelNotes}
                 onChange={e => setCancelNotes(e.target.value)}

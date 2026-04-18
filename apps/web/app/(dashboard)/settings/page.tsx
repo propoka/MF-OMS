@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { settingsApi, usersApi, CompanySettings, CancelReason, User } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -217,7 +218,7 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-6 pb-10">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Cài đặt Hệ thống</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Cài đặt</h1>
       </div>
 
       {/* Tab Navigation + Content */}
@@ -261,8 +262,8 @@ export default function SettingsPage() {
         <div className="flex-1 min-w-0">
           {/* General Tab */}
           {activeTab === 'general' && (
-            <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-              <CardHeader className="bg-muted/30 border-b py-5">
+            <GlassCard className="mb-4">
+              <CardHeader className="border-b border-border/40 pb-4 mb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
                   Thông tin In Hoá Đơn
@@ -342,22 +343,27 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="border-t border-muted/50 pt-4 flex justify-end">
-                      <Button onClick={handleSaveCompany} disabled={isSavingCompany || !company.name} className="px-6 h-10 font-semibold shadow-md hover:shadow-lg transition-all duration-200">
-                        {isSavingCompany ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Lưu thay đổi cấu hình
+                    <div className="border-t border-border/50 pt-6 flex justify-end">
+                      <Button 
+                        onClick={handleSaveCompany} 
+                        disabled={isSavingCompany || !company.name} 
+                        className="group relative overflow-hidden bg-neutral-900/85 hover:bg-black/90 backdrop-blur-xl text-white border border-white/20 hover:border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 h-11 rounded-full px-6"
+                      >
+                        <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500 pointer-events-none"></div>
+                        {isSavingCompany ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4 group-hover:scale-110 transition-all duration-500" />}
+                        <span className="font-semibold text-sm">Lưu thay đổi cấu hình</span>
                       </Button>
                     </div>
                   </div>
                 ) : null}
               </CardContent>
-            </Card>
+            </GlassCard>
           )}
 
           {/* Reasons Tab */}
           {activeTab === 'reasons' && (
-            <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-              <CardHeader className="bg-muted/30 border-b py-5">
+            <GlassCard className="mb-4">
+              <CardHeader className="border-b border-border/40 pb-4 mb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <ListChecks className="h-5 w-5 text-primary" />
                   Danh mục Lý do Huỷ / Hoàn trả
@@ -375,19 +381,24 @@ export default function SettingsPage() {
                       className="h-10"
                     />
                   </div>
-                  <Button onClick={handleAddReason} disabled={!newReasonLabel.trim() || isAddingReason} className="h-10 px-4 font-semibold shadow-sm">
-                    {isAddingReason ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
-                    Thêm
+                  <Button 
+                    onClick={handleAddReason} 
+                    disabled={!newReasonLabel.trim() || isAddingReason} 
+                    className="group relative overflow-hidden bg-neutral-900/85 hover:bg-black/90 backdrop-blur-xl text-white border border-white/20 hover:border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 h-11 rounded-full px-6"
+                  >
+                    <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500 pointer-events-none"></div>
+                    {isAddingReason ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-5 w-5 group-hover:rotate-90 group-hover:scale-110 transition-all duration-500" />}
+                    <span className="font-semibold text-sm">Thêm</span>
                   </Button>
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
+                <div className="w-full overflow-auto custom-scrollbar">
                   <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="px-6 text-foreground font-semibold">Lý do hiển thị</TableHead>
-                        <TableHead className="text-center w-[120px] text-foreground font-semibold">Trạng thái</TableHead>
-                        <TableHead className="text-right w-[80px] px-6 text-foreground font-semibold">Xoá</TableHead>
+                    <TableHeader>
+                      <TableRow className="border-b border-border/40 hover:bg-transparent">
+                        <TableHead className="uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pl-6 lg:pl-8">Lý do hiển thị</TableHead>
+                        <TableHead className="text-center w-[120px] uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4">Trạng thái</TableHead>
+                        <TableHead className="text-right w-[80px] uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pr-6 lg:pr-8">Xoá</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -403,9 +414,9 @@ export default function SettingsPage() {
                         </TableRow>
                       ) : (
                         reasons.map(r => (
-                          <TableRow key={r.id} className="hover:bg-muted/30 transition-colors">
-                            <TableCell className="font-medium px-6">{r.label}</TableCell>
-                            <TableCell className="text-center">
+                          <TableRow key={r.id} className="group hover:bg-muted/40 transition-colors border-border/30">
+                            <TableCell className="py-4 align-middle pl-6 lg:pl-8 font-medium">{r.label}</TableCell>
+                            <TableCell className="py-4 align-middle text-center">
                               <div className="flex justify-center">
                                 <Switch 
                                   checked={r.isActive} 
@@ -413,8 +424,8 @@ export default function SettingsPage() {
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="text-right px-6">
-                              <Button variant="ghost" size="sm" className="text-destructive h-8 w-8 p-0 hover:bg-destructive/10" onClick={() => handleDeleteReason(r.id)}>
+                            <TableCell className="py-4 align-middle pr-6 lg:pr-8 text-right">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-lg shadow-sm border border-border/40 text-muted-foreground transition-all flex items-center justify-center hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDeleteReason(r.id)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </TableCell>
@@ -428,7 +439,7 @@ export default function SettingsPage() {
                   * Mẹo: Các lý do ở trạng thái Tắt (Off) sẽ không hiển thị trong menu Huỷ đơn của nhân viên, nhưng vẫn bảo tồn log dữ liệu cho các đơn hàng cũ.
                 </p>
               </CardContent>
-            </Card>
+            </GlassCard>
           )}
 
           {/* Advanced Tab */}
@@ -438,8 +449,8 @@ export default function SettingsPage() {
 
           {/* Users Tab */}
           {activeTab === 'users' && user?.role === 'ADMIN' && (
-            <Card className="glass shadow-sm border-muted/50 overflow-hidden">
-              <CardHeader className="bg-muted/30 border-b py-5">
+            <GlassCard className="mb-4">
+              <CardHeader className="border-b border-border/40 pb-4 mb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <UsersIcon className="h-5 w-5 text-primary" />
                   Quản lý Nhân sự (Phân quyền)
@@ -460,21 +471,26 @@ export default function SettingsPage() {
                     <Label className="text-xs">Mật khẩu</Label>
                     <Input type="password" placeholder="Mật khẩu..." value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="h-9" />
                   </div>
-                  <div className="pt-5 shrink-0">
-                    <Button onClick={handleAddUser} disabled={!newUser.email || !newUser.fullName || !newUser.password || isAddingUser} className="h-9 px-4 shadow-sm">
-                      {isAddingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
-                      Tạo tài khoản
+                  <div className="pt-5 shrink-0 flex gap-2">
+                    <Button 
+                      onClick={handleAddUser} 
+                      disabled={!newUser.email || !newUser.fullName || !newUser.password || isAddingUser} 
+                      className="group relative overflow-hidden bg-neutral-900/85 hover:bg-black/90 backdrop-blur-xl text-white border border-white/20 hover:border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 h-10 rounded-full px-5"
+                    >
+                      <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500 pointer-events-none"></div>
+                      {isAddingUser ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4 group-hover:rotate-90 group-hover:scale-110 transition-all duration-500" />}
+                      <span className="font-semibold text-sm">Tạo tài khoản</span>
                     </Button>
                   </div>
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
+                <div className="w-full overflow-auto custom-scrollbar">
                   <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead className="px-6 text-foreground font-semibold">Tài khoản</TableHead>
-                        <TableHead className="text-center w-[150px] text-foreground font-semibold">Quyền (Role)</TableHead>
-                        <TableHead className="text-right w-[80px] px-6 text-foreground font-semibold">Xoá</TableHead>
+                    <TableHeader>
+                      <TableRow className="border-b border-border/40 hover:bg-transparent">
+                        <TableHead className="uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pl-6 lg:pl-8">Tài khoản</TableHead>
+                        <TableHead className="text-center w-[150px] uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4">Quyền (Role)</TableHead>
+                        <TableHead className="text-right w-[80px] uppercase tracking-wider text-[11px] font-semibold text-muted-foreground pb-4 pr-6 lg:pr-8">Xoá</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -490,12 +506,12 @@ export default function SettingsPage() {
                         </TableRow>
                       ) : (
                         usersList.map(u => (
-                          <TableRow key={u.id} className="hover:bg-muted/30 transition-colors">
-                            <TableCell className="px-6">
-                              <div className="font-semibold text-sm">{u.fullName}</div>
-                              <div className="text-xs text-muted-foreground">{u.email}</div>
+                          <TableRow key={u.id} className="group hover:bg-muted/40 transition-colors border-border/30">
+                            <TableCell className="py-4 align-middle pl-6 lg:pl-8">
+                              <div className="font-semibold text-[13px] text-foreground tracking-tight whitespace-nowrap">{u.fullName}</div>
+                              <div className="text-[11px] text-muted-foreground">{u.email}</div>
                             </TableCell>
-                            <TableCell className="text-center">
+                            <TableCell className="py-4 align-middle text-center">
                               <Button 
                                 variant={u.role === 'ADMIN' ? 'default' : 'outline'} 
                                 size="sm" 
@@ -505,11 +521,11 @@ export default function SettingsPage() {
                                 {u.role === 'ADMIN' ? 'Admin' : 'Staff'}
                               </Button>
                             </TableCell>
-                            <TableCell className="text-right px-6">
+                            <TableCell className="py-4 align-middle pr-6 lg:pr-8 text-right">
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="text-destructive h-8 w-8 p-0 hover:bg-destructive/10" 
+                                className="h-8 w-8 rounded-lg shadow-sm border border-border/40 text-muted-foreground transition-all flex items-center justify-center hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" 
                                 onClick={() => setUserToDelete(u.id)}
                                 disabled={u.id === user?.id} // Không tự xóa mình
                               >
@@ -523,7 +539,7 @@ export default function SettingsPage() {
                   </Table>
                 </div>
               </CardContent>
-            </Card>
+            </GlassCard>
           )}
         </div>
       </div>

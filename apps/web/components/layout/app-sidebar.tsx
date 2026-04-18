@@ -54,7 +54,7 @@ const navigationGroups = [
   {
     label: 'HỆ THỐNG',
     items: [
-      { name: 'Cài đặt hệ thống', href: '/settings', icon: Icons.settings },
+      { name: 'Cài đặt', href: '/settings', icon: Icons.settings },
     ]
   }
 ];
@@ -70,13 +70,10 @@ export default function AppSidebar() {
           <Image 
             src="/Logo-Moutain-Farmers.png" 
             alt="Mountain Farmers Logo" 
-            width={0}
-            height={0}
-            sizes="100px"
-            style={{ width: '100px', height: 'auto' }}
+            width={100}
+            height={40}
             className="object-contain group-data-[collapsible=icon]:hidden"
             priority
-            unoptimized
           />
           <div className="hidden group-data-[collapsible=icon]:flex w-8 h-8 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground flex-shrink-0 items-center justify-center font-bold">
             MF
@@ -116,7 +113,21 @@ export default function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <div className="px-4 py-2 opacity-30">
+      <div className="px-4 py-4 mt-auto group-data-[collapsible=icon]:hidden">
+        <div className="flex items-center gap-2.5 bg-muted/40 rounded-xl p-3 border border-border/40 shadow-sm transition-colors hover:bg-muted/60">
+          <div className="w-7 h-7 rounded-lg bg-background border border-border/60 flex items-center justify-center shrink-0 shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+            <Icons.logo className="h-4 w-4 text-primary" strokeWidth={2.5} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-[10px] font-medium tracking-wide text-muted-foreground/80 leading-none">Phát triển bởi</span>
+              <span className="text-[8px] font-bold leading-none px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary uppercase tracking-wider">V1.5</span>
+            </div>
+            <span className="text-[11px] font-bold text-foreground/80 tracking-tight leading-none truncate">the. POKALAB © 2026</span>
+          </div>
+        </div>
+      </div>
+      <div className="px-4 pb-0 opacity-30 group-data-[collapsible=icon]:hidden">
         <hr className="border-sidebar-border" />
       </div>
 
@@ -131,7 +142,7 @@ export default function AppSidebar() {
                     className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group'
                   >
                     <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary/5 flex items-center justify-center">
-                      <Image src="/avatar.svg" alt="Avatar" width={32} height={32} unoptimized />
+                      <Image src="/avatar.svg" alt="Avatar" width={32} height={32} />
                     </div>
                     <div className="flex flex-col items-start text-sm group-data-[collapsible=icon]:hidden">
                       <span className="font-semibold leading-none text-sidebar-foreground">{user?.fullName}</span>
@@ -142,30 +153,30 @@ export default function AppSidebar() {
                 }
               />
               <DropdownMenuContent
-                className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
+                className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-2xl bg-background p-1 shadow-lg border border-border/50'
                 side='bottom'
                 align='end'
                 sideOffset={4}
               >
-                <div className='px-2 py-1.5 font-normal flex items-center gap-2'>
-                    <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary/5 flex items-center justify-center">
-                      <Image src="/avatar.svg" alt="Avatar" width={32} height={32} unoptimized />
+                <div className='px-3 py-3 font-normal flex items-center gap-3 bg-muted/20 rounded-xl mb-1'>
+                    <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center shadow-sm border border-primary/20">
+                      <Image src="/avatar.svg" alt="Avatar" width={36} height={36} />
                     </div>
-                    <div className="flex flex-col items-start text-sm">
-                      <span className="font-semibold leading-none text-sidebar-foreground">{user?.fullName}</span>
-                      <span className="text-xs text-muted-foreground mt-1 truncate max-w-[120px]">{user?.role === 'ADMIN' ? 'Admin' : 'Staff'}</span>
+                    <div className="flex flex-col text-sm">
+                      <span className="font-bold tracking-tight text-foreground">{user?.fullName}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground mt-0.5 truncate uppercase tracking-wider">{user?.role === 'ADMIN' ? 'Admin' : 'Staff'}</span>
                     </div>
                 </div>
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="bg-border/30 mx-1 my-1" />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <Icons.account className='mr-2 h-4 w-4' />
+                  <DropdownMenuItem className="rounded-lg px-3 py-2.5 cursor-pointer font-medium transition-all hover:bg-primary/5 hover:text-primary">
+                    <Icons.account className='mr-2.5 h-4 w-4 opacity-70' />
                     Hồ sơ cá nhân
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
-                  <Icons.logout className='mr-2 h-4 w-4' />
+                <DropdownMenuSeparator className="bg-border/30 mx-1 my-1" />
+                <DropdownMenuItem onClick={logout} className="rounded-lg px-3 py-2.5 cursor-pointer font-medium text-destructive focus:bg-destructive/10 focus:text-destructive transition-all">
+                  <Icons.logout className='mr-2.5 h-4 w-4 opacity-70' />
                   Đăng xuất
                 </DropdownMenuItem>
               </DropdownMenuContent>

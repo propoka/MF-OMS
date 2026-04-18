@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
@@ -16,6 +17,7 @@ import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SettingsModule } from './settings/settings.module';
+import { AuditCleanupService } from './common/services/audit-cleanup.service';
 
 @Module({
   imports: [
@@ -24,6 +26,9 @@ import { SettingsModule } from './settings/settings.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // Cron scheduler — cho AuditLog cleanup
+    ScheduleModule.forRoot(),
 
     // Database — Global module
     PrismaModule,
@@ -55,6 +60,8 @@ import { SettingsModule } from './settings/settings.module';
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
     },
+    // Auto-cleanup audit logs > 90 ngày
+    AuditCleanupService,
   ],
 })
 export class AppModule {}

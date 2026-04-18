@@ -26,26 +26,22 @@ RUN pnpm install
 # Build Next.js app
 RUN pnpm build
 
-# ---- Production stage ----
+# ---- Production stage (standalone) ----
 FROM node:22-alpine AS runner
-RUN apk add --no-cache openssl && npm install -g pnpm@9
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-# Copy production files
-COPY apps/web/package.json apps/web/pnpm-lock.yaml ./
-COPY apps/web/next.config.ts ./
-COPY apps/web/postcss.config.mjs ./
-COPY apps/web/eslint.config.mjs ./
-COPY apps/web/tsconfig.json ./
-COPY apps/web/components.json ./
-COPY apps/web/middleware.ts ./
-COPY apps/web/public ./public
+# Thiết lập môi trường production
+ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
 
-# Copy built artifacts and node_modules from builder
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
+# Copy standalone output (nhỏ hơn ~10 lần so với full node_modules)
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+CMD ["node", "server.js"]

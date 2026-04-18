@@ -83,11 +83,13 @@ export default function CustomerGroupFormModal({ isOpen, onClose, onSuccess, gro
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b bg-muted/40">
-          <DialogTitle className="text-xl">{group ? 'Cập nhật Nhóm Khách hàng' : 'Thêm Nhóm Khách hàng mới'}</DialogTitle>
-          <DialogDescription>
-            Điền thông tin bên dưới để thiết lập nhóm phân loại khách hàng và quy tắc giá.
+      <DialogContent className="sm:max-w-[600px] p-0 border border-white/80 shadow-2xl overflow-hidden rounded-[24px] bg-[#fcfbfb] backdrop-blur-2xl">
+        <DialogHeader className="px-6 py-5 border-b border-black/5">
+          <DialogTitle className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            {group ? 'Cập nhật Nhóm Khách hàng' : 'Thêm Nhóm Khách hàng mới'}
+          </DialogTitle>
+          <DialogDescription className="text-foreground/70 text-[13px] font-medium tracking-tight">
+            Điền thôngত্তিn bên dưới để thiết lập nhóm phân loại khách hàng và quy tắc giá.
           </DialogDescription>
         </DialogHeader>
         
@@ -101,17 +103,19 @@ export default function CustomerGroupFormModal({ isOpen, onClose, onSuccess, gro
           
           <div className="space-y-6">
             <div className="flex items-center gap-2 text-foreground font-semibold">
-              <Tags className="h-5 w-5 text-emerald-600" />
-              <h3>Thông tin nhóm</h3>
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                <Tags className="h-4 w-4" />
+              </div>
+              <h3 className="text-[14px]">Thông tin nhóm</h3>
             </div>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Tên nhóm <span className="text-destructive">*</span></Label>
+                <Label htmlFor="name" className="text-[12px] font-bold tracking-tight text-foreground/80">Tên nhóm <span className="text-destructive">*</span></Label>
                 <Input 
                   id="name"
                   placeholder="VD: Sỉ cấp 1, Khách VIP..."
-                  className="h-10 border-muted-foreground/20 shadow-sm"
+                  className="h-11 px-4 border-black/5 bg-white focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 rounded-2xl transition-all w-full text-[13px] tracking-tight font-medium placeholder:font-medium placeholder:text-muted-foreground/50"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required 
@@ -119,11 +123,11 @@ export default function CustomerGroupFormModal({ isOpen, onClose, onSuccess, gro
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Mô tả (Tuỳ chọn)</Label>
+                <Label htmlFor="description" className="text-[12px] font-bold tracking-tight text-foreground/80">Mô tả (Tuỳ chọn)</Label>
                 <Input 
                   id="description"
                   placeholder="Ghi chú về điều kiện áp dụng mức giá của nhóm này"
-                  className="h-10 border-muted-foreground/20 shadow-sm"
+                  className="h-11 px-4 border-black/5 bg-white focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/20 rounded-2xl transition-all w-full text-[13px] tracking-tight font-medium placeholder:font-medium placeholder:text-muted-foreground/50"
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                 />
@@ -131,17 +135,18 @@ export default function CustomerGroupFormModal({ isOpen, onClose, onSuccess, gro
             </div>
           </div>
           
-          <DialogFooter className="pt-8 pb-2 mt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+          <DialogFooter className="px-6 py-4 border-t border-black/5 bg-transparent m-0 flex items-center justify-end gap-3 mt-8">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="h-11 rounded-2xl px-6 bg-white border-black/10 hover:bg-neutral-100 shadow-sm text-[13px] font-bold tracking-tight transition-all">
               Huỷ bỏ
             </Button>
-            <Button type="submit" disabled={isSubmitting || !name} className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px]">
+            <Button type="submit" disabled={isSubmitting || !name} className="group relative overflow-hidden bg-neutral-900/85 hover:bg-black/90 backdrop-blur-xl text-white border border-white/20 hover:border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 font-bold px-8 h-11 rounded-2xl">
               {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin opacity-80" />
               ) : (
-                <Check className="mr-2 h-4 w-4" />
+                <Check className="mr-2 h-4 w-4 opacity-80 group-hover:scale-110 transition-all duration-500" />
               )}
-              {group ? 'Lưu thay đổi' : 'Tạo nhóm mới'}
+              <span className="relative z-10 text-[13px] tracking-tight">{group ? 'Lưu thay đổi' : 'Tạo nhóm mới'}</span>
+              <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 group-hover:ring-white/30 transition-all duration-500 pointer-events-none"></div>
             </Button>
           </DialogFooter>
         </form>

@@ -135,7 +135,7 @@ export default function OrdersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Tìm mã ORD hoặc tên KH, SĐT..."
-              className="pl-9 h-10 border-white/40 bg-white/50 shadow-sm focus-visible:border-primary rounded-xl transition-all w-full"
+              className="pl-9 h-11 border-white/40 bg-white/50 shadow-sm focus-visible:border-primary rounded-xl transition-all w-full text-[13px] tracking-tight font-medium placeholder:font-medium placeholder:text-muted-foreground/70"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -143,7 +143,7 @@ export default function OrdersPage() {
           
           <div className="w-full xl:w-[200px] shrink-0">
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? 'ALL')}>
-              <SelectTrigger className="w-full h-10 bg-white/50 border-white/40 rounded-xl text-[13px] tracking-tight font-medium focus:ring-1 focus:ring-black/10 transition-all shadow-sm shadow-black/5 hover:bg-white">
+              <SelectTrigger className="w-full !h-11 bg-white/50 border-white/40 rounded-xl text-[13px] tracking-tight font-medium focus:ring-1 focus:ring-black/10 transition-all shadow-sm shadow-black/5 hover:bg-white">
                 <SelectValue placeholder="Trạng thái">
                   <div className="flex items-center gap-2">
                     {statusFilter === "ALL" ? (
@@ -190,7 +190,7 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 bg-white/50 border border-white/40 rounded-xl shadow-sm h-10 px-3 self-end xl:self-auto">
+        <div className="flex items-center gap-2 shrink-0 bg-white/50 border border-white/40 rounded-xl shadow-sm h-11 px-3 self-end xl:self-auto">
           <span className="text-[13px] font-medium text-muted-foreground whitespace-nowrap">Hiển thị</span>
           <Select value={limit.toString()} onValueChange={(v) => setLimit(Number(v))}>
             <SelectTrigger className="w-[70px] !h-8 border-none bg-transparent hover:bg-white/50 transition-colors focus:ring-0 shadow-none px-2 rounded-lg text-[13px] font-bold">
@@ -279,7 +279,7 @@ export default function OrdersPage() {
                         {o.snapshotCustomerName}
                       </span>
                       <span className="text-[11px] text-muted-foreground font-medium">
-                        {o.snapshotCustomerPhone || "Khách lẻ"}
+                        {o.customer?.group?.name || "Khách lẻ"}
                       </span>
                     </div>
                   </TableCell>
