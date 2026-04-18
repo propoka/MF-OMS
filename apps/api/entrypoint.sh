@@ -12,6 +12,9 @@ if ! pnpm run prisma:migrate:deploy; then
     # Chạy lại migrate để cập nhật tiếp các bản vá nối tiếp (như indexes)
     pnpm run prisma:migrate:deploy
 fi
+
+echo "[entrypoint] Đồng bộ Schema cưỡng bức (để phòng ngừa trường hợp thiếu cột db do file SQL hoặc migrations thiếu bản cập nhật mới)"
+pnpm exec prisma db push --accept-data-loss
 cd /app/apps/api
 
 echo "[entrypoint] Starting API server..."
