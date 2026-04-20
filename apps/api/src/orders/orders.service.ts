@@ -88,7 +88,7 @@ export class OrdersService implements OnModuleInit {
             create: pricingResult.orderItemsData,
           },
         },
-        include: { items: true, customer: true },
+        include: { items: { orderBy: { id: 'asc' } }, customer: true },
       });
     });
   }
@@ -100,7 +100,7 @@ export class OrdersService implements OnModuleInit {
 
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { items: true },
+      include: { items: { orderBy: { id: 'asc' } } },
     });
 
     if (!order) {
@@ -174,7 +174,7 @@ export class OrdersService implements OnModuleInit {
           totalAmount,
           notes: data.notes,
         },
-        include: { items: true, customer: true },
+        include: { items: { orderBy: { id: 'asc' } }, customer: true },
       });
     });
   }
@@ -220,7 +220,7 @@ export class OrdersService implements OnModuleInit {
         take: safeTake,
         include: {
           createdBy: { select: { fullName: true } },
-          items: true,
+          items: { orderBy: { id: 'asc' } },
           customer: { include: { group: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -234,7 +234,7 @@ export class OrdersService implements OnModuleInit {
     const order = await this.prisma.order.findFirst({
       where: { id, deletedAt: null },
       include: {
-        items: true,
+        items: { orderBy: { id: 'asc' } },
         createdBy: true,
         customer: { include: { group: true } },
         cancelReason: true,

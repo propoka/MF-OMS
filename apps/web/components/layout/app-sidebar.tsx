@@ -26,6 +26,7 @@ import { Icons } from '@/components/icons';
 import Link from 'next/link';
 import Image from 'next/image';
 import * as React from 'react';
+import packageJson from '../../package.json';
 
 // Navigation mapped to Tabler Icons and Grouped
 const navigationGroups = [
@@ -121,7 +122,7 @@ export default function AppSidebar() {
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1.5 mb-1">
               <span className="text-[10px] font-medium tracking-wide text-muted-foreground/80 leading-none">Phát triển bởi</span>
-              <span className="text-[8px] font-bold leading-none px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary uppercase tracking-wider">V1.5.1</span>
+              <span className="text-[8px] font-bold leading-none px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary uppercase tracking-wider">V{packageJson.version}</span>
             </div>
             <span className="text-[11px] font-bold text-foreground/80 tracking-tight leading-none truncate">the. POKALAB © 2026</span>
           </div>
