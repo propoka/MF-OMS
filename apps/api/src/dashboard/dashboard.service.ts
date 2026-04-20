@@ -324,6 +324,23 @@ export class DashboardService {
         notes: true,
         createdAt: true,
         createdBy: { select: { fullName: true } },
+        customer: {
+          select: {
+            group: { select: { name: true } }
+          }
+        },
+        items: {
+          select: {
+            id: true,
+            snapshotProductSku: true,
+            snapshotProductName: true,
+            snapshotProductUnit: true,
+            quantity: true,
+            snapshotUnitPrice: true,
+            lineDiscount: true,
+            lineTotal: true,
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
       take: 500, // Giới hạn để tránh nạp hàng chục nghìn đơn

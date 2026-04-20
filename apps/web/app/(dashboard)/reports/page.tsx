@@ -1050,31 +1050,55 @@ export default function ReportsPage() {
       {reportData && (
         <div
           id="print-report"
-          className="hidden print:block w-[210mm] text-black bg-white mx-auto print:absolute print:top-0 print:left-0"
+          className="hidden print:block w-[297mm] text-black bg-white mx-auto print:absolute print:top-0 print:left-0"
           style={{ fontFamily: '"Inter", sans-serif', color: "black" }}
         >
           <style
             dangerouslySetInnerHTML={{
               __html: `
             @media print {
-              @page { size: A4 portrait; margin: 15mm; }
-              /* Force overflow visibility so multiple pages are created */
-              html, body, #root, main, .overflow-hidden, .overflow-y-auto { 
+              @page { size: A4 landscape; margin: 10mm; }
+              
+              /* 1. Hide everything by default */
+              body * {
+                visibility: hidden;
+              }
+              
+              /* 2. Dismantle the entire layout skeleton (Shadcn grid, flex, relative containers) */
+              * {
+                position: static !important;
+                transform: none !important;
+              }
+              
+              /* 3. Nullify margins and overflow constraints on all ancestors */
+              html, body, [data-sidebar="wrapper"], [data-sidebar="inset"], main, main > div { 
                 height: auto !important; 
                 max-height: none !important; 
-                overflow: visible !important; 
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: auto !important;
+                max-width: none !important;
               }
-              body { background: white !important; font-family: "Inter", sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
               
-              /* Hide all components recursively globally up to html, except print-report */
-              /* In Tailwind + Next.js, we rely on print:hidden classes added above */
+              body { background: white !important; font-family: "Inter", sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
               
-              #print-report { 
-                position: relative !important; 
-                display: block !important;
+              /* 4. Resurrect only our report */
+              #print-report, #print-report * {
                 visibility: visible !important;
-                width: 100% !important; 
               }
+              
+              /* 5. Anchor the report to the true physical page (0,0) and force 100% width */
+              #print-report { 
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100vw !important; 
+                display: block !important;
+              }
+              
               .page-break { page-break-before: always; }
               table { border-collapse: collapse; width: 100%; border: 1px solid #111; }
               th, td { border: 1px solid #111; padding: 4px 6px; text-align: left; }
@@ -1280,64 +1304,97 @@ export default function ReportsPage() {
           {/* PART 3: ORDER DETAILS (PAGE BREAK) */}
           <div className="page-break">
             <h3 className="font-bold text-[12px] mb-1.5 uppercase border-l-4 border-black pl-2">
-              IV. Bảng kê Chi Tiết Đơn Hàng
+              IV. Bảng kê Chi Tiết Đơn Hàng (Đã phân tách sản phẩm)
             </h3>
-            <table className="w-full text-[9px]">
+            <table className="w-full text-[8.5px] border-collapse">
               <thead>
                 <tr>
-                  <th className="text-center w-[5%] font-bold">STT</th>
-                  <th className="text-left w-[12%] font-bold">Mã / Ngày</th>
-                  <th className="text-left w-[20%] font-bold">
-                    Khách Hàng (SĐT)
-                  </th>
-                  <th className="text-left w-[36%] font-bold">
-                    Tóm tắt Sản Phẩm
-                  </th>
-                  <th className="text-center w-[12%] font-bold">Trạng thái</th>
-                  <th className="text-right w-[15%] font-bold">
-                    Tổng Thanh Toán
-                  </th>
+                  <th className="text-center w-[3%] font-bold">STT</th>
+                  <th className="text-left w-[8%] font-bold">Mã / Ngày</th>
+                  <th className="text-left w-[12%] font-bold">Khách Hàng (SĐT)</th>
+                  <th className="text-left w-[7%] font-bold">SKU</th>
+                  <th className="text-left w-[15%] font-bold">Tên SP</th>
+                  <th className="text-center w-[4%] font-bold">ĐVT</th>
+                  <th className="text-center w-[3%] font-bold">SL</th>
+                  <th className="text-right w-[6%] font-bold">Đơn giá</th>
+                  <th className="text-right w-[6%] font-bold">CK dòng</th>
+                  <th className="text-right w-[7%] font-bold">T.Tiền SP</th>
+                  <th className="text-right w-[8%] font-bold">Tiền hàng(Đơn)</th>
+                  <th className="text-right w-[8%] font-bold">CK / Ship(Đơn)</th>
+                  <th className="text-right w-[8%] font-bold">Thực thu</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center py-2">
+                    <td colSpan={13} className="text-center py-2">
                       Không có đơn hàng nào.
                     </td>
                   </tr>
                 )}
-                {filteredOrders.map((o, idx) => (
-                  <tr key={o.id}>
-                    <td className="text-center font-bold">{idx + 1}</td>
-                    <td>
-                      <div className="font-bold">{o.orderNumber}</div>
-                      <div className="text-[9px]">
-                        {new Date(o.createdAt).toLocaleDateString("vi-VN")}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="font-bold">{o.snapshotCustomerName}</div>
-                      <div className="text-[9px]">
-                        {o.snapshotCustomerPhone}
-                      </div>
-                    </td>
-                    <td className="leading-[1.4]">
-                      {o.items?.map((i, iIdx) => (
-                        <div key={i.id} className="mb-[2px]">
-                          {iIdx + 1}. {i.snapshotProductName}{" "}
-                          <span className="font-bold">x{i.quantity}</span>
-                        </div>
-                      ))}
-                    </td>
-                    <td className="text-center font-bold">
-                      {formatStatusText(o.deliveryStatus)}
-                    </td>
-                    <td className="text-right font-black">
-                      {formatMoney(o.totalAmount)}
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  let sttIndex = 1;
+                  return filteredOrders.map((o) => {
+                    const hasItems = o.items && o.items.length > 0;
+                    if (!hasItems) {
+                      return (
+                        <tr key={o.id}>
+                          <td className="text-center font-bold border-black">{sttIndex++}</td>
+                          <td className="border-black">
+                            <div className="font-bold">{o.orderNumber}</div>
+                            <div className="text-[7.5px] text-gray-500">{new Date(o.createdAt).toLocaleDateString("vi-VN")}</div>
+                          </td>
+                          <td className="border-black">
+                            <div className="font-bold">{o.snapshotCustomerName}</div>
+                            <div className="text-[7.5px] text-gray-500">{o.snapshotCustomerPhone}</div>
+                          </td>
+                          <td colSpan={7} className="text-center text-gray-400 italic border-black">Đơn không có sản phẩm</td>
+                          <td className="text-right font-bold border-black align-top">{formatMoney(Number(o.subtotal || 0))}</td>
+                          <td className="text-right text-[7.5px] border-black align-top">
+                            <div className="text-red-700">CK: -{formatMoney(Number(o.discountAmount || 0))}</div>
+                            <div className="text-emerald-700">Ship: +{formatMoney(Number(o.shippingFee || 0))}</div>
+                          </td>
+                          <td className="text-right font-black text-[10px] border-black align-top">{formatMoney(Number(o.totalAmount || 0))}</td>
+                        </tr>
+                      );
+                    }
+
+                    return o.items!.map((i, iIdx) => (
+                      <tr key={i.id}>
+                        {iIdx === 0 && (
+                          <>
+                            <td className="text-center font-bold align-top border-black" rowSpan={o.items!.length}>{sttIndex++}</td>
+                            <td className="align-top border-black" rowSpan={o.items!.length}>
+                              <div className="font-bold">{o.orderNumber}</div>
+                              <div className="text-[7.5px] text-gray-500">{new Date(o.createdAt).toLocaleDateString("vi-VN")}</div>
+                            </td>
+                            <td className="align-top border-black" rowSpan={o.items!.length}>
+                              <div className="font-bold">{o.snapshotCustomerName}</div>
+                              <div className="text-[7.5px] text-gray-500">{o.snapshotCustomerPhone}</div>
+                            </td>
+                          </>
+                        )}
+                        <td className="text-[7.5px] border-black">{i.snapshotProductSku}</td>
+                        <td className="font-medium border-black leading-tight">{i.snapshotProductName}</td>
+                        <td className="text-center border-black">{i.snapshotProductUnit}</td>
+                        <td className="text-center font-bold border-black">{i.quantity}</td>
+                        <td className="text-right border-black">{formatMoney(Number(i.snapshotUnitPrice || 0))}</td>
+                        <td className="text-right text-red-700 border-black">-{formatMoney(Number(i.lineDiscount || 0))}</td>
+                        <td className="text-right font-bold border-black">{formatMoney(Number(i.lineTotal || 0))}</td>
+                        {iIdx === 0 && (
+                          <>
+                            <td className="text-right font-bold align-top border-black" style={{ verticalAlign: 'top' }} rowSpan={o.items!.length}>{formatMoney(Number(o.subtotal || 0))}</td>
+                            <td className="text-right text-[7.5px] align-top border-black" rowSpan={o.items!.length}>
+                              <div className="text-red-700">CK: -{formatMoney(Number(o.discountAmount || 0))}</div>
+                              <div className="text-emerald-700">Ship: +{formatMoney(Number(o.shippingFee || 0))}</div>
+                            </td>
+                            <td className="text-right font-black text-[10px] align-top border-black" rowSpan={o.items!.length}>{formatMoney(Number(o.totalAmount || 0))}</td>
+                          </>
+                        )}
+                      </tr>
+                    ));
+                  });
+                })()}
               </tbody>
             </table>
           </div>
