@@ -68,14 +68,38 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
   const [pricedItems, setPricedItems] = useState<Record<string, { unitPrice: number; source: string; note: string; lineTotal: number }>>({});
   const [pricingSubtotal, setPricingSubtotal] = useState<number | null>(null);
 
+  const DRAFT_KEY = 'MF_OMS_ORDER_DRAFT';
+
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setCart([]);
+    setPricedItems({});
+    setPricingSubtotal(null);
+    if (!initialCustomerId) {
+      setCustomerId('');
+      setSelectedCustomerObj(null);
+      setSearchCustomer('');
+    }
+    setShippingFee(0);
+    setShowCustomerDropdown(false);
+  };
+
   useEffect(() => {
     if (isOpen) {
       const token = getToken()!;
-      const startSearch = undefined;
-      crmApi.getCustomers(token, { take: 500, search: initialCustomerId ? undefined : undefined }).then(res => {
+      
+      let draftData = null;
+      try {
+        const draftStr = localStorage.getItem(DRAFT_KEY);
+        if (draftStr) draftData = JSON.parse(draftStr);
+      } catch (e) {}
+
+      const activeCustomerId = initialCustomerId || draftData?.customerId || '';
+
+      crmApi.getCustomers(token, { take: 500, search: activeCustomerId ? undefined : undefined }).then(res => {
         let activeCustomers = res.data.filter(c => c.isActive);
-        if (initialCustomerId) {
-          crmApi.getCustomer(token, initialCustomerId).then(match => {
+        if (activeCustomerId) {
+          crmApi.getCustomer(token, activeCustomerId).then(match => {
             if (match) {
               if (!activeCustomers.some(c => c.id === match.id)) {
                  activeCustomers = [match, ...activeCustomers];
@@ -90,23 +114,46 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
           setCustomers(activeCustomers);
         }
       }).catch(console.error);
+      
       productsApi.getProducts(token, { take: 500 }).then(res => setProducts(res.data.filter(p => p.isActive))).catch(console.error);
       
-      // Reset state
-      if (!initialCustomerId) {
-        setCustomerId('');
-        setSearchCustomer('');
-        setSelectedCustomerObj(null);
+      const shouldLoadDraft = draftData && (!initialCustomerId || draftData.customerId === initialCustomerId);
+      if (shouldLoadDraft) {
+        setCart(draftData.cart || []);
+        setShippingFee(draftData.shippingFee || 0);
+        if (draftData.pricedItems) setPricedItems(draftData.pricedItems);
+        if (draftData.pricingSubtotal !== undefined) setPricingSubtotal(draftData.pricingSubtotal);
+        if (draftData.selectedCustomerObj && draftData.customerId) {
+           setCustomerId(draftData.customerId);
+           setSelectedCustomerObj(draftData.selectedCustomerObj);
+           setSearchCustomer(draftData.selectedCustomerObj.phone || draftData.selectedCustomerObj.fullName);
+        }
       } else {
-        setCustomerId(initialCustomerId);
+        setCart([]);
+        setShippingFee(0);
+        if (!initialCustomerId) {
+          setCustomerId('');
+          setSearchCustomer('');
+          setSelectedCustomerObj(null);
+        } else {
+          setCustomerId(initialCustomerId);
+        }
       }
-      setCart([]);
-      setShippingFee(0);
+      
       setShowCustomerDropdown(false);
-      setPricedItems({});
-      setPricingSubtotal(null);
+      if (!shouldLoadDraft) {
+        setPricedItems({});
+        setPricingSubtotal(null);
+      }
     }
   }, [isOpen, initialCustomerId, getToken]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const draftData = { cart, customerId, shippingFee, selectedCustomerObj, pricedItems, pricingSubtotal };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+    }
+  }, [cart, customerId, shippingFee, selectedCustomerObj, pricedItems, pricingSubtotal, isOpen]);
 
   // Async search for products
   useEffect(() => {
@@ -265,6 +312,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
         notes: ''
       };
       await ordersApi.createOrder(getToken()!, payload);
+      localStorage.removeItem(DRAFT_KEY);
       setShowSuccessModal(true);
     } catch (err: any) {
       toast.error(err.message || 'Lỗi thao tác, từ chối khai báo đơn hàng');
@@ -405,10 +453,17 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
             <div className="w-full lg:w-2/3 border border-border/50 shadow-none rounded-[24px] flex flex-col bg-card overflow-hidden h-full max-h-full">
               <div className="flex flex-row items-center justify-between p-5 pb-4 border-b border-border/40 shrink-0">
                 <div className="text-sm font-semibold text-foreground">Giỏ hàng</div>
-                <div className="text-sm text-muted-foreground font-medium flex items-center">
-                  <span className="tabular-nums">{cart.length}</span> <span className="ml-1">sản phẩm</span>
-                  <span className="mx-2 opacity-40">•</span> 
-                  <span>Tổng số lượng:</span> <span className="ml-1 tabular-nums">{cart.reduce((acc, curr) => acc + parseQty(curr.quantity), 0)}</span>
+                <div className="flex items-center gap-4">
+                  {(cart.length > 0 || customerId || shippingFee > 0) && (
+                    <Button variant="outline" size="sm" onClick={clearDraft} className="text-xs text-destructive bg-destructive/5 hover:bg-destructive/15 border-destructive/20 h-7 px-3 font-medium transition-colors">
+                      <Trash2 size={13} className="mr-1.5 opacity-70" /> Xóa nháp
+                    </Button>
+                  )}
+                  <div className="text-sm text-muted-foreground font-medium flex items-center">
+                    <span className="tabular-nums">{cart.length}</span> <span className="ml-1">sản phẩm</span>
+                    <span className="mx-2 opacity-40">•</span> 
+                    <span>Tổng số lượng:</span> <span className="ml-1 tabular-nums">{cart.reduce((acc, curr) => acc + parseQty(curr.quantity), 0)}</span>
+                  </div>
                 </div>
               </div>
               <div className="flex-1 overflow-auto relative">
@@ -628,11 +683,7 @@ export default function OrderCreateSheet({ isOpen, initialCustomerId, onClose, o
         <div className="flex sm:justify-center flex-col sm:flex-row gap-3 mt-4">
           <Button variant="outline" className="h-11 rounded-full px-8 bg-muted/20 border-border/50 hover:bg-muted/50 font-medium w-full sm:w-auto" onClick={() => { 
             setShowSuccessModal(false); 
-            setCart([]); 
-            setCustomerId(''); 
-            setSelectedCustomerObj(null);
-            setShippingFee(0); 
-            setSearchCustomer('');
+            clearDraft();
           }}>
             Tạo đơn mới
           </Button>

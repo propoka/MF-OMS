@@ -1,6 +1,6 @@
 {
   "name": "@mf/web",
-  "version": "1.5.2",
+  "version": "1.6.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
